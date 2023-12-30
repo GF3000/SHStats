@@ -32,6 +32,7 @@ class SegundaVentana(tk.Toplevel):
         self.title(f"Liga: {liga.nombre}")
         self.geometry("800x400")
         self.liga = liga
+        self.df = None
 
         # Columna 1
         self.label_col1 = ttk.Label(self, text="Links", style="Title.TLabel")
@@ -100,24 +101,26 @@ class SegundaVentana(tk.Toplevel):
             messagebox.showerror("Error", "Ha ocurrido un error al intentar obtener los datos.\nVerifica que los enlaces sean correctos.")
             return None
     def mostrar_dataframe(self):
-        df = self.get_dataframe()
-        if df is None:
+        if self.df is None:
+            self.df = self.get_dataframe()
+        if self.df is None:
             return
         ventana_dataframe = tk.Toplevel(self)
         ventana_dataframe.title("Tabla de Datos")
         ventana_dataframe.geometry("1000x600")
         tabla = ttk.Treeview(ventana_dataframe)
-        tabla["columns"] = list(df.columns)
+        tabla["columns"] = list(self.df.columns)
         tabla["show"] = "headings"
         for col in tabla["columns"]:
             tabla.heading(col, text=col)
-        for index, row in df.iterrows():
+        for index, row in self.df.iterrows():
             tabla.insert("", "end", values=list(row))
         tabla.pack(padx=10, pady=10)
 
     def exportar_dataframe(self):
-        df = self.get_dataframe()
-        if df is None:
+        if self.df is None:
+            self.df = self.get_dataframe()
+        if self.df is None:
             return
         ventana_exportar = tk.Toplevel(self)
         ventana_exportar.title("Exportar Datos")
@@ -126,8 +129,8 @@ class SegundaVentana(tk.Toplevel):
         nombre_archivo_entry = ttk.Entry(ventana_exportar)
         nombre_archivo_entry.insert(0, self.liga.nombre)
         nombre_archivo_entry.pack(pady=5)
-        ttk.Button(ventana_exportar, text="Exportar a Excel", command=lambda: self.exportar_a_excel(df, nombre_archivo_entry.get(), ventana_exportar)).pack(pady=5)
-        ttk.Button(ventana_exportar, text="Exportar a CSV", command=lambda: self.exportar_a_csv(df, nombre_archivo_entry.get(), ventana_exportar)).pack(pady=5)
+        ttk.Button(ventana_exportar, text="Exportar a Excel", command=lambda: self.exportar_a_excel(self.df, nombre_archivo_entry.get(), ventana_exportar)).pack(pady=5)
+        ttk.Button(ventana_exportar, text="Exportar a CSV", command=lambda: self.exportar_a_csv(self.df, nombre_archivo_entry.get(), ventana_exportar)).pack(pady=5)
     def exportar_a_excel(self, df, nombre_archivo, ventana):
         try:
             df.to_excel("exports/" + nombre_archivo + ".xlsx")
@@ -189,11 +192,13 @@ class SegundaVentana(tk.Toplevel):
         btn_borrar.pack(pady=5)
 
     def borrar_enlace(self, enlace, ventana_edicion): # Aquí puedes realizar acciones para borrar el enlace, por ejemplo, actualizar tu lista de enlaces
-            self.liga.enlaces.remove(enlace)
-            self.actualizar_botones_enlaces()
+            if enlace in self.liga.enlaces:
+                self.liga.enlaces.remove(enlace)
+                self.actualizar_botones_enlaces()
             ventana_edicion.destroy()
 
     def actualizar_botones_enlaces(self):
+        self.df = None
         self.listbox_enlaces.delete(0, tk.END)
         for enlace in self.liga.enlaces:
             if len(enlace) > 18:
@@ -206,6 +211,8 @@ class SegundaVentana(tk.Toplevel):
     def guardar_liga(self, liga):
         nombre_nuevo = self.entry_nombre.get()
         if nombre_nuevo:
+            if liga not in self.master.competiciones:
+                self.master.competiciones.append(liga)
             liga.nombre = nombre_nuevo
             self.master.actualizar_listbox()
             self.master.guardar_configuracion()  # Guarda la configuración al actualizar la liga

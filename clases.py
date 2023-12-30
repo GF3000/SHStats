@@ -1,5 +1,5 @@
-class liga_favorita:
-    def __init__(self, index = 0, nombre = "Nueva liga", enlaces = None):
+class competicion:
+    def __init__(self, index = 0, nombre = "", enlaces = None):
         self.index = index
         self.nombre = nombre
         self.enlaces = enlaces if enlaces else []

@@ -5,11 +5,12 @@ import tkinter as tk
 from tkinter import simpledialog, messagebox, scrolledtext
 from ventana_liga import SegundaVentana
 from ventana_exportar import ExportarVentana
-from clases import liga_favorita
+from clases import competicion
 from tkinter import ttk
 import pandas as pd
 from SH_Stats_back import analisis
 import os
+import matplotlib.pyplot as plt
 
 
 class VentanaMain(tk.Tk):
@@ -39,9 +40,11 @@ class VentanaMain(tk.Tk):
                                  background="white", foreground="blue", anchor="center", borderwidth=4,
                                  font=self.fuentes["textos"])
         self.title("SH Stats")
-        self.geometry("800x400")
+        self.geometry("1000x400")
 
-        self.ligas_favoritas = []
+        self.competiciones = []
+        self.df_estadisticas = None
+        self.df_partidos = None
 
         # Columna de Enlaces
         self.label_enlaces = ttk.Label(self, text="Competiciones", style="Title.TLabel")
@@ -50,37 +53,50 @@ class VentanaMain(tk.Tk):
         self.listbox.grid(row=2, rowspan = 2, column=0, padx=10, pady=10, sticky="nsew")
 
         # Botón para añadir Liga
-        self.boton_anadir_liga = ttk.Button(self, text="Añadir Competición", command=self.anadir_liga, style="Boton.TButton")
-        self.boton_anadir_liga.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
+        self.boton_anadir_competicion = ttk.Button(self, text="Añadir Competición", command=self.anadir_liga, style="Boton.TButton")
+        self.boton_anadir_competicion.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
 
         # Columna de Tabla
-        self.label_tabla = ttk.Label(self, text="Tabla", style="Title.TLabel")
+        self.label_tabla = ttk.Label(self, text="Estadísticas", style="Title.TLabel")
         self.label_tabla.grid(row=0, column=1, padx=10, pady=3)
 
-        boton = ttk.Button(self, text=f"Configurar Tabla",
+        boton = ttk.Button(self, text=f"Configurar Estadísticas",
                           command=lambda : self.mostrar_mensaje(f"Configurar Tabla"), style="Boton.TButton")
         boton.grid(row=1, column=1, padx=10, pady=10, sticky="nsew")
-        boton = ttk.Button(self, text=f"Ver Tabla",
+        boton = ttk.Button(self, text=f"Ver Estadísticas",
                           command=lambda : self.mostrar_dataframe(), style="Boton.TButton")
         boton.grid(row=2, column=1, padx=10, pady=10, sticky="nsew")
-        boton = ttk.Button(self, text=f"Exportar Tabla",
+        boton = ttk.Button(self, text=f"Exportar Estadísticas",
                           command =  lambda:  self.abrir_ventana_exportar(), style="Boton.TButton")
         boton.grid(row=3, column=1, padx=10, pady=10, sticky="nsew")
+
+        # Columna de Partidos
+        self.label_partidos = ttk.Label(self, text="Partidos", style="Title.TLabel")
+        self.label_partidos.grid(row=0, column=2, padx=10, pady=3)
+        boton = ttk.Button(self, text=f"Configurar Partidos",
+                            command=lambda : self.mostrar_mensaje(f"Configurar Tabla"), style="Boton.TButton")
+        boton.grid(row=1, column=2, padx=10, pady=10, sticky="nsew")
+        boton = ttk.Button(self, text=f"Ver Partidos",
+                            command=lambda : self.mostrar_partidos(), style="Boton.TButton")
+        boton.grid(row=2, column=2, padx=10, pady=10, sticky="nsew")
+        boton = ttk.Button(self, text=f"Exportar Partidos",
+                            command =  lambda:  self.exportar_partidos(), style="Boton.TButton")
+        boton.grid(row=3, column=2, padx=10, pady=10, sticky="nsew")
 
 
         # Columna de Gráficos
         self.label_graficos = ttk.Label(self, text="Gráficos", style="Title.TLabel")
-        self.label_graficos.grid(row=0, column=2, padx=10, pady=3)
+        self.label_graficos.grid(row=0, column=3, padx=10, pady=3)
 
         boton = ttk.Button(self, text=f"Configurar Gráficos",
                           command=lambda : self.mostrar_mensaje(f"Configurar Gráficos"), style="Boton.TButton")
-        boton.grid(row=1, column=2, padx=10, pady=10, sticky="nsew")
+        boton.grid(row=1, column=3, padx=10, pady=10, sticky="nsew")
         boton = ttk.Button(self, text=f"Ver Gráficos",
-                          command=lambda : self.mostrar_mensaje(f"Ver Gráficos"), style="Boton.TButton")
-        boton.grid(row=2, column=2, padx=10, pady=10, sticky="nsew")
+                          command=lambda : self.mostrar_graficos(), style="Boton.TButton")
+        boton.grid(row=2, column=3, padx=10, pady=10, sticky="nsew")
         boton = ttk.Button(self, text=f"Exportar Gráficos",
                           command =  lambda:  self.mostrar_mensaje(f"Exportar Gráficos"), style="Boton.TButton")
-        boton.grid(row=3, column=2, padx=10, pady=10, sticky="nsew")
+        boton.grid(row=3, column=3, padx=10, pady=10, sticky="nsew")
 
 
         # Otras cosas
@@ -91,20 +107,77 @@ class VentanaMain(tk.Tk):
 
 
 
-
     def on_select(self, event):
         # display element selected on list
         try:
             index = self.listbox.curselection()[0]
-            self.mostrar_segunda_ventana(self.ligas_favoritas[index])
+            self.mostrar_segunda_ventana(self.competiciones[index])
         except IndexError:
             pass
-    def ajustar_pantalla(self, event):
-        self.geometry(f"{event.width}x{event.height}")
+
+    def mostrar_graficos(self):
+        if self.df_estadisticas is None:
+            self.df_estadisticas = self.get_dataframe()
+        if self.df_estadisticas is None:
+            return
+        plt.bar(self.df_estadisticas["nombre"], self.df_estadisticas["avg_goles"], color ="blue")
+        plt.title("Goles por partido")
+        plt.show()
+        plt.bar(self.df_estadisticas["nombre"], self.df_estadisticas["avg_DIF_total"], color ="blue")
+        plt.title("Diferencia de goles por partido")
+        plt.show()
+        # plt.bar(self.df["nombre"], self.df["avg_GF_en_victorias"], color = "blue")
+        # plt.bar(self.df["nombre"], self.df["avg_GC_en_victorias"], color = "red")
+        # plt.title("Goles en victorias")
+        # plt.show()
+
+    def mostrar_partidos(self):
+        urls = []
+        if self.df_partidos is None:
+            for liga in self.competiciones:
+                urls.extend(liga.enlaces)
+            partidos = analisis.comparar_partidos(urls)
+        else:
+            partidos = self.df_partidos
+        if partidos is None:
+            return
+        ventana_partidos = tk.Toplevel(self)
+        ventana_partidos.title("Ventana de Partidos")
+        # Crear un widget tk.Treeview para mostrar el DataFrame en la nueva ventana
+        tree = ttk.Treeview(ventana_partidos)
+        tree["columns"] = list(partidos.columns)
+        #tree.heading("#0", text="Índice")
+        for col in partidos.columns:
+            tree.heading(col, text=col)
+
+        # Agregar filas al tk.Treeview
+        for index, row in partidos.iterrows():
+            tree.insert("", tk.END, values=list(row))
+
+        tree.pack(padx=10, pady=10)
+        self.df_partidos = partidos
+
+    def exportar_partidos(self):
+        urls = []
+        if self.df_partidos is None:
+            for liga in self.competiciones:
+                urls.extend(liga.enlaces)
+            self.df_partidos = analisis.comparar_partidos(urls)
+        if self.df_partidos is None:
+            return
+        ventana_exportar = ExportarVentana(self, self.df_partidos)
+
+
+
+
+
 
     def abrir_ventana_exportar(self):
-        df = self.get_dataframe()
-        ventana_exportar = ExportarVentana(self, df)
+        if self.df_estadisticas is None:
+            self.df_estadisticas = self.get_dataframe()
+        if self.df_estadisticas is None:
+            return
+        ventana_exportar = ExportarVentana(self, self.df_estadisticas)
     def mostrar_segunda_ventana(self, liga):
         segunda_ventana = SegundaVentana(self, liga)
 
@@ -116,14 +189,9 @@ class VentanaMain(tk.Tk):
 
     def borrar_boton_liga(self, liga):
         # Buscar el botón que corresponde a la liga usando index
-        for boton in self.grid_slaves(column=0):
-            if boton.grid_info()["row"] == liga.index + 2:
-                boton.destroy()
-        self.ligas_favoritas.remove(liga)
-        # Reajustar los índices de las ligas
-        for index, liga in enumerate(self.ligas_favoritas):
-            liga.index = index
-        self.actualizar_listbox()
+        if liga in self.competiciones:
+            self.competiciones.remove(liga)
+            self.actualizar_listbox()
 
 
     def get_dataframe(self):
@@ -131,13 +199,14 @@ class VentanaMain(tk.Tk):
         liga = None
         try:
             ligas_y_enlaces = {}
-            for liga in self.ligas_favoritas:
+            for liga in self.competiciones:
                 ligas_y_enlaces[liga.nombre] = liga.enlaces
             df = analisis.comparar_ligas(ligas_y_enlaces)
             #Terminamos la tarea
+            self.df_estadisticas = df
             return df
         except Exception as e:
-            if len(self.ligas_favoritas) == 0:
+            if len(self.competiciones) == 0:
                 messagebox.showerror("Error", "No hay ligas para comparar.\nAñade ligas para poder compararlas.")
             else:
                 messagebox.showerror("Error", f"Ha ocurrido un error al intentar obtener las estadísticas de \"{liga.nombre}\".\nVerifica que las urls sean correctas.")
@@ -145,9 +214,9 @@ class VentanaMain(tk.Tk):
             print(e)
             return None
     def mostrar_dataframe(self):
-
-        df = self.get_dataframe()
-        if df is None:
+        if self.df_estadisticas is None:
+            self.get_dataframe()
+        if self.df_estadisticas is None:
             return
 
         ventana_dataframe = tk.Toplevel(self)
@@ -155,13 +224,13 @@ class VentanaMain(tk.Tk):
 
         # Crear un widget tk.Treeview para mostrar el DataFrame en la nueva ventana
         tree = ttk.Treeview(ventana_dataframe)
-        tree["columns"] = list(df.columns)
+        tree["columns"] = list(self.df_estadisticas.columns)
         #tree.heading("#0", text="Índice")
-        for col in df.columns:
+        for col in self.df_estadisticas.columns:
             tree.heading(col, text=col)
 
         # Agregar filas al tk.Treeview
-        for index, row in df.iterrows():
+        for index, row in self.df_estadisticas.iterrows():
             tree.insert("", tk.END, values=list(row))
 
         tree.pack(padx=10, pady=10)
@@ -169,24 +238,8 @@ class VentanaMain(tk.Tk):
 
 
     def anadir_liga(self):
-        ventana_annadir_liga = tk.Toplevel(self)
-        ventana_annadir_liga.title("Añadir Competición")
-        ttk.Label(ventana_annadir_liga, text="Añadir Competición:", style="Title.TLabel").pack(pady=5)
-
-        self.entry_nombre_liga = ttk.Entry(ventana_annadir_liga, font = self.fuentes["botones"], width = 30)
-        self.entry_nombre_liga.pack(padx=10, pady=5)
-
-        def obtener_nombre_liga():
-            nombre_liga = self.entry_nombre_liga.get()
-            if nombre_liga:
-                nueva_liga = liga_favorita(index=len(self.ligas_favoritas), nombre=nombre_liga)
-                self.ligas_favoritas.append(nueva_liga)
-                self.actualizar_listbox()
-                self.mostrar_segunda_ventana(nueva_liga)
-                ventana_annadir_liga.destroy()
-        # Botón para aceptar
-        boton_aceptar = ttk.Button(ventana_annadir_liga, text="Aceptar", style = "Boton.TButton",command=obtener_nombre_liga)
-        boton_aceptar.pack(pady=10)
+        nueva_liga = competicion()
+        self.mostrar_segunda_ventana(nueva_liga)
 
 
     def anadir_boton_liga(self, liga, index = None):
@@ -197,7 +250,7 @@ class VentanaMain(tk.Tk):
         if index != None:
             boton.grid(row=index + 2, column=0, padx=10, pady=10, sticky="nsew")
         else:
-            boton.grid(row=len(self.ligas_favoritas) + 1, column=0, padx=10, pady=10, sticky="nsew")
+            boton.grid(row=len(self.competiciones) + 1, column=0, padx=10, pady=10, sticky="nsew")
 
     def mostrar_mensaje(self, mensaje):
         mensaje = mensaje + "\nFunción no implementada."
@@ -205,7 +258,7 @@ class VentanaMain(tk.Tk):
 
     def guardar_configuracion(self):
         # Guardar la configuración en un archivo JSON
-        configuracion = {"ligas": [{"nombre": liga.nombre, "index": liga.index, "enlaces": liga.enlaces} for liga in self.ligas_favoritas]}
+        configuracion = {"ligas": [{"nombre": liga.nombre, "index": liga.index, "enlaces": liga.enlaces} for liga in self.competiciones]}
         with open("config/ligas.json", "w") as archivo:
             json.dump(configuracion, archivo)
 
@@ -215,7 +268,7 @@ class VentanaMain(tk.Tk):
             with open("config/ligas.json", "r") as archivo:
                 configuracion = json.load(archivo)
                 ligas = configuracion.get("ligas", [])
-                self.ligas_favoritas = [liga_favorita(nombre=liga["nombre"], index = liga["index"], enlaces=liga["enlaces"]) for liga in ligas]
+                self.competiciones = [competicion(nombre=liga["nombre"], enlaces=liga["enlaces"]) for liga in ligas]
                 self.actualizar_listbox()
 
         except FileNotFoundError:
@@ -224,8 +277,8 @@ class VentanaMain(tk.Tk):
 
     def actualizar_listbox(self):
         self.listbox.delete(0, tk.END)
-
-        for liga in self.ligas_favoritas:
+        self.df_estadisticas = None
+        for liga in self.competiciones:
             self.listbox.insert(tk.END, liga.nombre)
 
 
