@@ -319,8 +319,6 @@ def comparar_partidos(liga, decimales = 1, tiempo = False):
         listado_partidos.append(partidos)
     # Plain listado_partidos
     listado_partidos = [partido.to_dict() for lista in listado_partidos for partido in lista]
-    for elemento in listado_partidos:
-        print(elemento)
     df = pd.DataFrame(listado_partidos)
     df.index = np.arange(1, len(df) + 1)
     df = df.rename_axis('#')

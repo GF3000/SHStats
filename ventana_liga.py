@@ -30,9 +30,8 @@ class SegundaVentana(tk.Toplevel):
                                font=self.fuentes["textos"])
 
         self.title(f"Liga: {liga.nombre}")
-        self.geometry("1000x600")
+        self.geometry("800x400")
         self.liga = liga
-        self.enlaces = []
 
         # Columna 1
         self.label_col1 = ttk.Label(self, text="Links", style="Title.TLabel")
@@ -41,7 +40,12 @@ class SegundaVentana(tk.Toplevel):
         self.boton_anadir_enlace = ttk.Button(self, text="Añadir Enlace", command=self.anadir_enlace,
                                            style="Boton.TButton")
         self.boton_anadir_enlace.grid(row=1, column=0, padx=10, pady=10)
+        self.listbox_enlaces = tk.Listbox(self, font=self.fuentes["textos"])
+        self.listbox_enlaces.grid(row=2, rowspan = 2, column=0, padx=10, pady=10)
 
+        self.boton_cerrar = ttk.Button(self, text="Guardar", command=lambda: self.guardar_liga(liga),
+                                       style="BotonVerde.TButton")
+        self.boton_cerrar.grid(row=4, column=0, columnspan = 2, padx=10, pady=10, sticky="nsew")
 
         # Columna 2 - Nombre
         self.label_nombre = ttk.Label(self, text="Nombre", style="Title.TLabel")
@@ -58,24 +62,34 @@ class SegundaVentana(tk.Toplevel):
         boton = ttk.Button(self, text=f"Configurar Tabla Partidos",
                           command=lambda: self.mostrar_mensaje(f"Configurar Tabla Partidos"),
                             style="Boton.TButton")
-        boton.grid(row=1, column=2, padx=10, pady=10)
+        boton.grid(row=1, column=2, padx=10, pady=10, sticky="nsew")
         boton = ttk.Button(self, text=f"Ver Tabla Partidos",
                           command=lambda: self.mostrar_dataframe(),
                           style="Boton.TButton")
-        boton.grid(row=2, column=2, padx=10, pady=10)
+        boton.grid(row=2, column=2, padx=10, pady=10, sticky="nsew")
         boton = ttk.Button(self, text=f"Exportar Tabla Partidos",
                           command=lambda: self.exportar_dataframe(),
                           style="Boton.TButton")
-        boton.grid(row=3, column=2, padx=10, pady=10)
+        boton.grid(row=3, column=2, padx=10, pady=10, sticky="nsew")
+        self.boton_borrar = ttk.Button(self, text="Borrar", command=lambda: self.borrar_liga(liga),
+                                       style="BotonRojo.TButton")
+        self.boton_borrar.grid(row=4, column=2, padx=10, pady=10, sticky="nsew")
 
         # Columna 4
 
-        self.boton_cerrar = ttk.Button(self, text="Guardar", command=lambda: self.guardar_liga(liga), style="BotonVerde.TButton")
-        self.boton_borrar = ttk.Button(self, text="Borrar", command=lambda: self.borrar_liga(liga), style="BotonRojo.TButton")
-        self.boton_cerrar.grid(row=1, column=3, padx=10, pady=10)
-        self.boton_borrar.grid(row=2, column=3, padx=10, pady=10)
+
+
 
         self.actualizar_botones_enlaces()
+
+        self.listbox_enlaces.bind("<<ListboxSelect>>", self.on_select)
+
+    def on_select(self, event):
+        try:
+            index = self.listbox_enlaces.curselection()[0]
+            self.edicion_enlace(self.liga.enlaces[index])
+        except IndexError:
+            pass
 
     def get_dataframe(self):
         try:
@@ -83,7 +97,7 @@ class SegundaVentana(tk.Toplevel):
             return df
         except Exception as e:
             print(e)
-            self.mostrar_mensaje("Ha ocurrido un error al intentar obtener los datos.\nVerifica que los enlaces sean correctos.")
+            messagebox.showerror("Error", "Ha ocurrido un error al intentar obtener los datos.\nVerifica que los enlaces sean correctos.")
             return None
     def mostrar_dataframe(self):
         df = self.get_dataframe()
@@ -112,9 +126,9 @@ class SegundaVentana(tk.Toplevel):
         nombre_archivo_entry = ttk.Entry(ventana_exportar)
         nombre_archivo_entry.insert(0, self.liga.nombre)
         nombre_archivo_entry.pack(pady=5)
-        ttk.Button(ventana_exportar, text="Exportar a Excel", command=lambda: self.exportar_a_excel(df, nombre_archivo_entry.get())).pack(pady=5)
-        ttk.Button(ventana_exportar, text="Exportar a CSV", command=lambda: self.exportar_a_csv(df, nombre_archivo_entry.get())).pack(pady=5)
-    def exportar_a_excel(self, df, nombre_archivo):
+        ttk.Button(ventana_exportar, text="Exportar a Excel", command=lambda: self.exportar_a_excel(df, nombre_archivo_entry.get(), ventana_exportar)).pack(pady=5)
+        ttk.Button(ventana_exportar, text="Exportar a CSV", command=lambda: self.exportar_a_csv(df, nombre_archivo_entry.get(), ventana_exportar)).pack(pady=5)
+    def exportar_a_excel(self, df, nombre_archivo, ventana):
         try:
             df.to_excel("exports/" + nombre_archivo + ".xlsx")
             print(f"Exportado a Excel: {nombre_archivo}")
@@ -122,6 +136,7 @@ class SegundaVentana(tk.Toplevel):
         except Exception as e:
             print(e)
             messagebox.showerror("Error", "Ha ocurrido un error al intentar exportar los datos.\nVerifica que el nombre del archivo sea correcto.")
+        ventana.destroy()
     def exportar_a_csv(self, df, nombre_archivo):
         try:
             df.to_csv("exports/" + nombre_archivo + ".csv")
@@ -131,10 +146,19 @@ class SegundaVentana(tk.Toplevel):
             print(e)
             messagebox.showerror("Error", "Ha ocurrido un error al intentar exportar los datos.\nVerifica que el nombre del archivo sea correcto.")
     def anadir_enlace(self):
-        enlace = simpledialog.askstring("Enlace", "Introduce el enlace")
-        if enlace:
-            self.liga.enlaces.append(enlace)
+        ventana_annadir_enlace = tk.Toplevel(self)
+        ventana_annadir_enlace.title("Añadir Enlace")
+        ttk.Label(ventana_annadir_enlace, text="Añadir Enlace:", style="Title.TLabel").pack(pady=5)
+        entry_enlace = ttk.Entry(ventana_annadir_enlace, font=self.fuentes["botones"], width=50)
+        entry_enlace.pack(pady=5)
+        def guardar_enlace():
+            nuevo_enlace = entry_enlace.get()
+            self.liga.enlaces.append(nuevo_enlace)
             self.actualizar_botones_enlaces()
+            ventana_annadir_enlace.destroy()
+        btn_guardar = ttk.Button(ventana_annadir_enlace, text="Guardar", command=guardar_enlace, style="BotonVerde.TButton")
+        btn_guardar.pack(pady=5)
+
 
     def edicion_enlace(self, enlace):
         enlace_en_uso = enlace
@@ -170,24 +194,20 @@ class SegundaVentana(tk.Toplevel):
             ventana_edicion.destroy()
 
     def actualizar_botones_enlaces(self):
-        for boton in self.grid_slaves(column=0):
-            if boton.grid_info()["row"] > 1:
-                boton.destroy()
-        for index, enlace in enumerate(self.liga.enlaces):
-            if len(enlace) > 15:
-                enlace_acortado ="..." + enlace[-10:]
-                boton = ttk.Button(self, text=enlace_acortado, command=lambda e=enlace: self.edicion_enlace(enlace = e), style="BotonPequeño.TButton")
+        self.listbox_enlaces.delete(0, tk.END)
+        for enlace in self.liga.enlaces:
+            if len(enlace) > 18:
+                nuevo_enlace = "..." + enlace[-15:]
+                self.listbox_enlaces.insert(tk.END, nuevo_enlace)
             else:
-                boton = ttk.Button(self, text=enlace, command=lambda e=enlace: self.edicion_enlace(enlace = e), style="BotonPequeño.TButton")
-            boton.grid(row=index+2, column=0, padx=10, pady=10)
-            self.enlaces.append(boton)
+                self.listbox_enlaces.insert(tk.END, enlace)
 
 
     def guardar_liga(self, liga):
         nombre_nuevo = self.entry_nombre.get()
         if nombre_nuevo:
             liga.nombre = nombre_nuevo
-            self.master.actualizar_boton_liga(liga)
+            self.master.actualizar_listbox()
             self.master.guardar_configuracion()  # Guarda la configuración al actualizar la liga
         self.destroy()
     def borrar_liga(self, liga):
@@ -195,4 +215,5 @@ class SegundaVentana(tk.Toplevel):
         self.master.guardar_configuracion()
         self.destroy()
     def mostrar_mensaje(self, mensaje):
+        mensaje = mensaje + "\n (Esta función aún no está implementada)"
         messagebox.showinfo("Mensaje", mensaje)

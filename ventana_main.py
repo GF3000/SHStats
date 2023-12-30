@@ -46,6 +46,8 @@ class VentanaMain(tk.Tk):
         # Columna de Enlaces
         self.label_enlaces = ttk.Label(self, text="Competiciones", style="Title.TLabel")
         self.label_enlaces.grid(row=0, column=0, padx=10, pady=3)
+        self.listbox = tk.Listbox(self, selectmode=tk.SINGLE , font=self.fuentes["textos"])
+        self.listbox.grid(row=2, rowspan = 2, column=0, padx=10, pady=10, sticky="nsew")
 
         # Botón para añadir Liga
         self.boton_anadir_liga = ttk.Button(self, text="Añadir Competición", command=self.anadir_liga, style="Boton.TButton")
@@ -67,28 +69,36 @@ class VentanaMain(tk.Tk):
 
 
         # Columna de Gráficos
-        # self.label_graficos = ttk.Label(self, text="Gráficos", style="Title.TLabel")
-        # self.label_graficos.grid(row=0, column=2, padx=10, pady=3)
-        #
-        # boton = ttk.Button(self, text=f"Configurar Gráficos",
-        #                   command=lambda : self.mostrar_mensaje(f"Configurar Gráficos"), style="Boton.TButton")
-        # boton.grid(row=1, column=2, padx=10, pady=10, sticky="nsew")
-        # boton = ttk.Button(self, text=f"Ver Gráficos",
-        #                   command=lambda : self.mostrar_mensaje(f"Ver Gráficos"), style="Boton.TButton")
-        # boton.grid(row=2, column=2, padx=10, pady=10, sticky="nsew")
-        # boton = ttk.Button(self, text=f"Exportar Gráficos",
-        #                   command =  lambda:  self.mostrar_mensaje(f"Exportar Gráficos"), style="Boton.TButton")
-        # boton.grid(row=3, column=2, padx=10, pady=10, sticky="nsew")
+        self.label_graficos = ttk.Label(self, text="Gráficos", style="Title.TLabel")
+        self.label_graficos.grid(row=0, column=2, padx=10, pady=3)
+
+        boton = ttk.Button(self, text=f"Configurar Gráficos",
+                          command=lambda : self.mostrar_mensaje(f"Configurar Gráficos"), style="Boton.TButton")
+        boton.grid(row=1, column=2, padx=10, pady=10, sticky="nsew")
+        boton = ttk.Button(self, text=f"Ver Gráficos",
+                          command=lambda : self.mostrar_mensaje(f"Ver Gráficos"), style="Boton.TButton")
+        boton.grid(row=2, column=2, padx=10, pady=10, sticky="nsew")
+        boton = ttk.Button(self, text=f"Exportar Gráficos",
+                          command =  lambda:  self.mostrar_mensaje(f"Exportar Gráficos"), style="Boton.TButton")
+        boton.grid(row=3, column=2, padx=10, pady=10, sticky="nsew")
 
 
         # Otras cosas
         self.cargar_configuracion()
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=1)
+        self.listbox.bind("<<ListboxSelect>>", self.on_select)
 
 
 
 
+    def on_select(self, event):
+        # display element selected on list
+        try:
+            index = self.listbox.curselection()[0]
+            self.mostrar_segunda_ventana(self.ligas_favoritas[index])
+        except IndexError:
+            pass
     def ajustar_pantalla(self, event):
         self.geometry(f"{event.width}x{event.height}")
 
@@ -113,12 +123,7 @@ class VentanaMain(tk.Tk):
         # Reajustar los índices de las ligas
         for index, liga in enumerate(self.ligas_favoritas):
             liga.index = index
-        for boton in self.grid_slaves(column=0):
-            if boton.grid_info()["row"] > 1:
-                #remove the old button
-                boton.destroy()
-        for liga in self.ligas_favoritas:
-            self.anadir_boton_liga(liga, index= liga.index)
+        self.actualizar_listbox()
 
 
     def get_dataframe(self):
@@ -176,7 +181,7 @@ class VentanaMain(tk.Tk):
             if nombre_liga:
                 nueva_liga = liga_favorita(index=len(self.ligas_favoritas), nombre=nombre_liga)
                 self.ligas_favoritas.append(nueva_liga)
-                self.anadir_boton_liga(nueva_liga)
+                self.actualizar_listbox()
                 self.mostrar_segunda_ventana(nueva_liga)
                 ventana_annadir_liga.destroy()
         # Botón para aceptar
@@ -195,6 +200,7 @@ class VentanaMain(tk.Tk):
             boton.grid(row=len(self.ligas_favoritas) + 1, column=0, padx=10, pady=10, sticky="nsew")
 
     def mostrar_mensaje(self, mensaje):
+        mensaje = mensaje + "\nFunción no implementada."
         messagebox.showinfo("Mensaje", mensaje)
 
     def guardar_configuracion(self):
@@ -210,13 +216,17 @@ class VentanaMain(tk.Tk):
                 configuracion = json.load(archivo)
                 ligas = configuracion.get("ligas", [])
                 self.ligas_favoritas = [liga_favorita(nombre=liga["nombre"], index = liga["index"], enlaces=liga["enlaces"]) for liga in ligas]
-                for liga in self.ligas_favoritas:
-                    self.anadir_boton_liga(liga, index = liga.index)
+                self.actualizar_listbox()
 
         except FileNotFoundError:
             # Si el archivo no existe, no hay configuración para cargar
             pass
 
+    def actualizar_listbox(self):
+        self.listbox.delete(0, tk.END)
+
+        for liga in self.ligas_favoritas:
+            self.listbox.insert(tk.END, liga.nombre)
 
 
 
