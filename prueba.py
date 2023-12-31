@@ -1,48 +1,59 @@
 import tkinter as tk
-from tkinter import ttk, filedialog
+from tkinter import ttk, messagebox
+import json
 
-class Aplicacion:
+class ConfiguracionEstadisticas:
     def __init__(self, root):
         self.root = root
-        self.root.title("Barra de Opciones")
+        self.root.title("Configuración de Estadísticas")
 
-        # Barra de menú
-        self.barra_menu = tk.Menu(self.root)
-        self.root.config(menu=self.barra_menu)
+        # Cargar configuración desde el archivo JSON
+        self.configuracion = self.cargar_configuracion()
 
-        # Menú Archivo
-        menu_archivo = tk.Menu(self.barra_menu, tearoff=0)
-        menu_archivo.add_command(label="Abrir", command=self.abrir_archivo)
-        menu_archivo.add_command(label="Guardar", command=self.guardar_archivo)
-        menu_archivo.add_separator()
-        menu_archivo.add_command(label="Salir", command=self.salir)
-        self.barra_menu.add_cascade(label="Archivo", menu=menu_archivo)
+        # Diccionario para almacenar las variables de control
+        self.vars_control = {}
 
-        # Menú Ayuda
-        menu_ayuda = tk.Menu(self.barra_menu, tearoff=0)
-        menu_ayuda.add_command(label="Acerca de", command=self.acerca_de)
-        self.barra_menu.add_cascade(label="Ayuda", menu=menu_ayuda)
+        # Crear y mostrar la interfaz gráfica
+        self.crear_interfaz()
 
-    def abrir_archivo(self):
-        # Agrega la lógica para abrir un archivo
-        print("Abrir archivo")
+    def cargar_configuracion(self):
+        try:
+            with open("config/config_estadisticas.json", "r", encoding="utf-8") as archivo:
+                configuracion = json.load(archivo)
+            return configuracion
+        except FileNotFoundError:
+            # Manejar el caso en el que el archivo no existe
+            messagebox.showerror("Error", "El archivo 'config/config_estadisticas.json' no se encuentra.")
+            return {}
 
-    def guardar_archivo(self):
-        # Abre un cuadro de diálogo para elegir la ubicación de guardado
-        file_path = filedialog.asksaveasfilename(defaultextension=".shs",
-                                                   filetypes=[("Archivo SHStats", "*.shs"), ("Todos los archivos", "*.*")])
-        if file_path:
-            # Agrega la lógica para guardar el archivo en la ubicación seleccionada
-            print(f"Guardar en: {file_path}")
+    def guardar_configuracion(self):
+        try:
+            with open("config/config_estadisticas.json", "w", encoding="utf-8") as archivo:
+                json.dump(self.configuracion, archivo, indent=2)
+        except Exception as e:
+            # Manejar errores al guardar la configuración
+            messagebox.showerror("Error", f"Error al guardar la configuración: {e}")
 
-    def salir(self):
-        self.root.destroy()
+    def crear_interfaz(self):
+        # Crear y configurar los widgets
+        for variable, valor in self.configuracion.items():
+            # Etiqueta
+            ttk.Label(self.root, text=variable).pack(pady=5)
 
-    def acerca_de(self):
-        # Agrega la lógica para mostrar información acerca de la aplicación
-        print("Acerca de")
+            # Checkbox
+            var_control = tk.BooleanVar(value=valor)
+            self.vars_control[variable] = var_control
+            checkbox = ttk.Checkbutton(self.root, variable=var_control, command=lambda v=variable: self.actualizar_configuracion(v))
+            checkbox.pack()
+
+    def actualizar_configuracion(self, variable):
+        # Actualizar el valor de la configuración
+        self.configuracion[variable] = self.vars_control[variable].get()
+
+        # Guardar la configuración actualizada
+        self.guardar_configuracion()
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = Aplicacion(root)
+    app = ConfiguracionEstadisticas(root)
     root.mainloop()
