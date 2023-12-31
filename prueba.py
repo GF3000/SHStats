@@ -1,53 +1,48 @@
 import tkinter as tk
-from tkinter import ttk
-from tkinter import messagebox
+from tkinter import ttk, filedialog
 
-class TreeviewApp:
-    def __init__(self, master):
-        self.master = master
-        self.master.title("Treeview Example")
+class Aplicacion:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Barra de Opciones")
 
-        # Crear un Treeview con una sola columna
-        self.treeview = ttk.Treeview(self.master, columns=("Nombre",))
-        self.treeview.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+        # Barra de menú
+        self.barra_menu = tk.Menu(self.root)
+        self.root.config(menu=self.barra_menu)
 
-        # Agregar encabezado
-        self.treeview.heading("#0", text="Nombre")
+        # Menú Archivo
+        menu_archivo = tk.Menu(self.barra_menu, tearoff=0)
+        menu_archivo.add_command(label="Abrir", command=self.abrir_archivo)
+        menu_archivo.add_command(label="Guardar", command=self.guardar_archivo)
+        menu_archivo.add_separator()
+        menu_archivo.add_command(label="Salir", command=self.salir)
+        self.barra_menu.add_cascade(label="Archivo", menu=menu_archivo)
 
-        # Agregar datos
-        self.treeview.insert("", "end", text="Juan")
-        self.treeview.insert("", "end", text="María")
-        self.treeview.insert("", "end", text="Carlos")
+        # Menú Ayuda
+        menu_ayuda = tk.Menu(self.barra_menu, tearoff=0)
+        menu_ayuda.add_command(label="Acerca de", command=self.acerca_de)
+        self.barra_menu.add_cascade(label="Ayuda", menu=menu_ayuda)
 
-        # Configurar opciones de peso para centrar
-        self.master.columnconfigure(0, weight=1)
-        self.master.rowconfigure(0, weight=1)
+    def abrir_archivo(self):
+        # Agrega la lógica para abrir un archivo
+        print("Abrir archivo")
 
-        # Botón Eliminar
-        self.boton_eliminar = ttk.Button(self.master, text="Eliminar", command=self.eliminar_seleccion)
-        self.boton_eliminar.grid(row=1, column=0, pady=10)
+    def guardar_archivo(self):
+        # Abre un cuadro de diálogo para elegir la ubicación de guardado
+        file_path = filedialog.asksaveasfilename(defaultextension=".shs",
+                                                   filetypes=[("Archivo SHStats", "*.shs"), ("Todos los archivos", "*.*")])
+        if file_path:
+            # Agrega la lógica para guardar el archivo en la ubicación seleccionada
+            print(f"Guardar en: {file_path}")
 
-        # Configurar el evento de selección
-        self.treeview.bind("<ButtonRelease-1>", self.mostrar_mensaje)
+    def salir(self):
+        self.root.destroy()
 
-    def eliminar_seleccion(self):
-        # Obtener la selección actual
-        seleccion = self.treeview.selection()
-        if seleccion:
-            # Eliminar la entrada seleccionada
-            self.treeview.delete(seleccion)
-
-    def mostrar_mensaje(self, event):
-        # Obtener el elemento seleccionado
-        item = self.treeview.selection()
-        if item:
-            # Obtener el texto del elemento seleccionado
-            texto = self.treeview.item(item, "text")
-
-            # Mostrar un cuadro de mensaje con el texto
-            messagebox.showinfo("Nombre Seleccionado", f"Nombre: {texto}")
+    def acerca_de(self):
+        # Agrega la lógica para mostrar información acerca de la aplicación
+        print("Acerca de")
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = TreeviewApp(root)
+    app = Aplicacion(root)
     root.mainloop()

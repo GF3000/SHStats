@@ -34,6 +34,8 @@ class SegundaVentana(tk.Toplevel):
         self.liga = liga
         self.df = None
 
+
+
         # Columna 1
         self.label_col1 = ttk.Label(self, text="Links", style="Title.TLabel")
         self.label_col1.grid(row=0, column=0, padx=10, pady=10)
@@ -100,6 +102,7 @@ class SegundaVentana(tk.Toplevel):
             print(e)
             messagebox.showerror("Error", "Ha ocurrido un error al intentar obtener los datos.\nVerifica que los enlaces sean correctos.")
             return None
+
     def mostrar_dataframe(self):
         if self.df is None:
             self.df = self.get_dataframe()

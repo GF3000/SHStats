@@ -2,7 +2,7 @@ import io
 import json
 import sys
 import tkinter as tk
-from tkinter import simpledialog, messagebox, scrolledtext
+from tkinter import simpledialog, messagebox, scrolledtext, filedialog
 from ventana_liga import SegundaVentana
 from ventana_exportar import ExportarVentana
 from clases import competicion
@@ -45,6 +45,25 @@ class VentanaMain(tk.Tk):
         self.competiciones = []
         self.df_estadisticas = None
         self.df_partidos = None
+
+        # Barra de menú
+        self.barra_menu = tk.Menu(self)
+        self.config(menu=self.barra_menu)
+
+        # Menú Archivo
+        menu_archivo = tk.Menu(self.barra_menu, tearoff=0)
+        menu_archivo.add_command(label="Abrir", command=self.abrir_archivo)
+        menu_archivo.add_command(label="Guardar", command=self.guardar_archivo)
+        menu_archivo.add_command(label="Borrar competiciones", command=self.borrar_competiciones)
+        menu_archivo.add_separator()
+        menu_archivo.add_command(label="Salir", command=self.salir)
+        self.barra_menu.add_cascade(label="Archivo", menu=menu_archivo)
+
+
+        # Menú Ayuda
+        menu_ayuda = tk.Menu(self.barra_menu, tearoff=0)
+        menu_ayuda.add_command(label="Acerca de", command=self.acerca_de)
+        self.barra_menu.add_cascade(label="Ayuda", menu=menu_ayuda)
 
         # Columna de Enlaces
         self.label_enlaces = ttk.Label(self, text="Competiciones", style="Title.TLabel")
@@ -115,6 +134,44 @@ class VentanaMain(tk.Tk):
         except IndexError:
             pass
 
+
+    def borrar_competiciones(self):
+        self.competiciones = []
+        self.actualizar_listbox()
+        self.guardar_configuracion()
+        self.df_estadisticas = None
+        self.df_partidos = None
+
+    def abrir_archivo(self):
+        # Agrega la lógica para abrir un archivo
+        file_path = filedialog.askopenfilename(filetypes=[("Archivo SHStats", "*.shs"), ("Todos los archivos", "*.*")])
+        if file_path:
+            # Agrega la lógica para abrir el archivo seleccionado
+            with open(file_path, "r") as archivo:
+                #delete ligas.json content
+
+                with open("config/ligas.shs", "w") as ligas:
+                    ligas.write(archivo.read())
+            self.cargar_configuracion()
+            self.actualizar_listbox()
+
+    def guardar_archivo(self):
+        # Abre un cuadro de diálogo para elegir la ubicación de guardado
+        file_path = filedialog.asksaveasfilename(defaultextension=".shs",
+                                                   filetypes=[("Archivo SHStats", "*.shs"), ("Todos los archivos", "*.*")])
+        if file_path:
+            # Agrega la lógica para guardar el archivo en la ubicación seleccionada
+            with open(file_path, "w") as archivo:
+                # Copy content from ligas.json to the new file
+                with open("config/ligas.shs", "r") as ligas:
+                    archivo.write(ligas.read())
+
+    def salir(self):
+        self.destroy()
+
+    def acerca_de(self):
+        # Agrega la lógica para mostrar información acerca de la aplicación
+        print("Acerca de")
     def mostrar_graficos(self):
         if self.df_estadisticas is None:
             self.df_estadisticas = self.get_dataframe()
@@ -259,13 +316,13 @@ class VentanaMain(tk.Tk):
     def guardar_configuracion(self):
         # Guardar la configuración en un archivo JSON
         configuracion = {"ligas": [{"nombre": liga.nombre, "index": liga.index, "enlaces": liga.enlaces} for liga in self.competiciones]}
-        with open("config/ligas.json", "w") as archivo:
+        with open("config/ligas.shs", "w") as archivo:
             json.dump(configuracion, archivo)
 
     def cargar_configuracion(self):
         try:
             # Cargar la configuración desde el archivo JSON
-            with open("config/ligas.json", "r") as archivo:
+            with open("config/ligas.shs", "r") as archivo:
                 configuracion = json.load(archivo)
                 ligas = configuracion.get("ligas", [])
                 self.competiciones = [competicion(nombre=liga["nombre"], enlaces=liga["enlaces"]) for liga in ligas]
