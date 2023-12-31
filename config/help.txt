@@ -1,0 +1,8 @@
+CARGAR DATOS
+1) Añada una competición con "Añadir competición"
+2) Añada un nombre a la competición en la caja de texto debajo de "Nombre"
+3) Añada los enlaces a los resultados pulsando en "Añadir enlace"
+4) Para modificar o borrar un enlace, pulse sobre el enlace en la lista de enlaces
+5) Para borrar la competición, pulse sobre el botón "Borrar"
+6) Para guardar la competición, pulse sobre el botón "Guardar"
+7) Puede modificar la competición pulsando sobre su nombre en la lista de competiciones
