@@ -3,6 +3,8 @@ import requests
 import datetime
 import numpy as np
 import pandas as pd
+from matplotlib import pyplot as plt
+
 from SH_Stats_back import clases, funciones_auxiliares
 
 def get_soup(url, tiempo = False):
@@ -94,6 +96,7 @@ def cargar_partidos(soup):
 def crear_equipos(partidos, tiempo = False):
     tiempo_inicio = datetime.datetime.now()
     equipos = clases.listado_equipos()
+    print(f"total equipos: {len(equipos)}")
     for partido in partidos:
         local = clases.equipo(partido.local, federacion = partido.federacion, liga = partido.liga, grupo = partido.grupo, temporada=  partido.temporada)
         visitante = clases.equipo(partido.visitante, federacion = partido.federacion, liga = partido.liga, grupo = partido.grupo, temporada=  partido.temporada)
@@ -109,10 +112,14 @@ def crear_equipos(partidos, tiempo = False):
 
         local.add_partido(partido)
         visitante.add_partido(partido)
+    tiempo_ejecucion = datetime.datetime.now() - tiempo_inicio
+    if (tiempo):
+        return equipos, tiempo_ejecucion
+    else:
+        return equipos
 
-def get_clasificacion(url, tiempo = False):
-    soup, tiempo_soup = get_soup(url, tiempo = True)
-    partidos, tiempo_partidos = cargar_partidos(soup)
+def get_clasificacion(partidos, tiempo = False):
+    tiempo_inicio = datetime.datetime.now()
     equipos = crear_equipos(partidos)
     equipos_dict = equipos.to_dict()
 
@@ -140,7 +147,7 @@ def get_clasificacion(url, tiempo = False):
         df = df.rename(index={index: str(i+1) + '. '})
 
     if (tiempo):
-        tiempo_ejecucion = tiempo_soup  + tiempo_partidos
+        tiempo_ejecucion = datetime.datetime.now() - tiempo_inicio
         return df, tiempo_ejecucion
     else:
         return df
@@ -185,6 +192,7 @@ def total_goles(partidos):
         goles_partido += partido.gv
         total.append(goles_partido)
     return total
+
 
 def get_stats_de_url(url, decimales=1, tiempo=False):
     tabla = []
@@ -278,6 +286,79 @@ def get_stats_de_partidos(partidos, nombre = None, federacion=None, liga=None, g
     else:
         return df
 
+def get_stats_de_partidos_de_equipos(equipo):
+    partidos = equipo.partidos
+    goles_equipo = []
+    goles_rival = []
+    diferencias = []
+    victorias_locales = 0
+    victorias_visitantes = 0
+    derrotas_locales = 0
+    derrotas_visitantes = 0
+    empates_locales = 0
+    empates_visitantes = 0
+    for partido in partidos:
+        if (equipo.es_local(partido)):
+            goles_equipo.append(partido.gl)
+            goles_rival.append(partido.gv)
+            diferencias.append(partido.gl - partido.gv)
+            if (partido.gl > partido.gv):
+                victorias_locales += 1
+            elif (partido.gl < partido.gv):
+                derrotas_locales += 1
+            else:
+                empates_locales += 1
+
+        else:
+            goles_equipo.append(partido.gv)
+            goles_rival.append(partido.gl)
+            diferencias.append(partido.gv - partido.gl)
+            if (partido.gl > partido.gv):
+                derrotas_visitantes += 1
+            elif (partido.gl < partido.gv):
+                victorias_visitantes += 1
+            else:
+                empates_visitantes += 1
+    victorias = 0
+    derrotas = 0
+    empates = 0
+    for diferencia in diferencias:
+        if (diferencia > 0):
+            victorias += 1
+        elif (diferencia < 0):
+            derrotas += 1
+        else:
+            empates += 1
+
+
+    avg_GF = round(np.mean(goles_equipo), 1)
+    sd_GF = round(np.std(goles_equipo), 1)
+    avg_GC = round(np.mean(goles_rival), 1)
+    sd_GC = round(np.std(goles_rival), 1)
+    avg_DIF_total = round(np.mean(diferencias), 1)
+    sd_DIF_total = round(np.std(diferencias), 1)
+    num_partidos = len(partidos)
+
+    return {"num_partidos": num_partidos,
+            "victorias": victorias,
+            "derrotas": derrotas,
+            "empates": empates,
+            "victorias_locales" : victorias_locales,
+            "victorias_visitantes": victorias_visitantes,
+            "derrotas_locales": derrotas_locales,
+            "derrotas_visitantes": derrotas_visitantes,
+            "empates_locales": empates_locales,
+            "empates_visitantes": empates_visitantes,
+            "avg_GF": avg_GF,
+            "sd_GF": sd_GF,
+            "avg_GC": avg_GC,
+            "sd_GC": sd_GC,
+            "avg_DIF": avg_DIF_total,
+            "sd_DIF": sd_DIF_total}
+
+
+
+
 def comparar_ligas(ligas, decimales = 1, tiempo = False):
     tiempo_inicio = datetime.datetime.now()
     listado_dfs = []
@@ -287,6 +368,7 @@ def comparar_ligas(ligas, decimales = 1, tiempo = False):
         listado_partidos = []
         mi_soup = None
         for i, url in enumerate(liga):
+            url = funciones_auxiliares.convert_url(url)
             print("Descargando link " + str(i+1) + " de " + str(len(liga)) + ": " + url)
             mi_soup = get_soup(url)
             partidos, tiempo_partidos = cargar_partidos(mi_soup)
@@ -308,11 +390,12 @@ def comparar_ligas(ligas, decimales = 1, tiempo = False):
     else:
         return df
 
-def comparar_partidos(liga, decimales = 1, tiempo = False):
+def get_partidos(liga, decimales = 1, tiempo = False):
     tiempo_inicio = datetime.datetime.now()
     listado_partidos = []
     mi_soup = None
     for i, url in enumerate(liga):
+        url = funciones_auxiliares.convert_url(url)
         print("Descargando link " + str(i+1) + " de " + str(len(liga)) + ": " + url)
         mi_soup = get_soup(url)
         partidos, tiempo_partidos = cargar_partidos(mi_soup)
@@ -330,49 +413,51 @@ def comparar_partidos(liga, decimales = 1, tiempo = False):
     else:
         return df
 
+def get_df_partidos(equipo):
+    partidos = equipo.partidos
+    partidos_dict = []
+    for partido in partidos:
+        partidos_dict.append(partido.to_dict())
+    df = pd.DataFrame(partidos_dict)
+    df.index = np.arange(1, len(df) + 1)
+    df = df.rename_axis('#')
+    df = df.rename(columns={"local": "Local", "gl": "GL", "gv": "GV", "visitante": "Visitante", "liga": "Liga", "grupo": "Grupo", "temporada": "Temporada", "federacion": "Federación", "fecha": "Fecha"})
+    df = df[["Local",  "GL", "GV","Visitante", "Liga", "Grupo", "Temporada", "Federación", "Fecha"]]
+
+    def asignar_goles(row):
+        if equipo.nombre == row["Local"]:
+            return pd.Series({"GolesEquipo": row["GL"], "GolesRival": row["GV"], "Diferencia": row["GL"] - row["GV"]})
+        else:
+            return pd.Series({"GolesEquipo": row["GV"], "GolesRival": row["GL"], "Diferencia": row["GV"] - row["GL"]})
+
+    # Aplicar la función a lo largo de las filas del DataFrame
+    df[['GolesEquipo', 'GolesRival', 'Diferencia']] = df.apply(asignar_goles, axis=1)
+
+    return df
 
 
 
 
 
 if __name__ == "__main__":
-    urls_CESA_IM = ["https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=1&id=1010161",
-                    "https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=1&id=1010162",
-                    "https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=1&id=1010190",
-                    "https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=1&id=1010189",
-                    "https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=1&id=1015404",
-                    "https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=1&id=1015405",
-                    "https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=1&id=1015406",
-                    "https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=1&id=1015407"]
-    urls_CESA_IF = ["https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=1&id=1010166",
-                    "https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=1&id=1010168",
-                    "https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=1&id=1010193",
-                    "https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=1&id=1010194",
-                    "https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=1&id=1015408",
-                    "https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=1&id=1015409",
-                    "https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=1&id=1015410",
-                    "https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=1&id=1015411"]
-    urls_CESA_CM = ["https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=1&id=1010151",
-                    "https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=1&id=1010152",
-                    "https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=1&id=1010183",
-                    "https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=1&id=1010184",
-                    "https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=1&id=1015437",
-                    "https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=1&id=1015438",
-                    "https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=1&id=1015439",
-                    "https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=1&id=1015440"]
-    urls_CESA_CF = ["https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=1&id=1010155",
-                    "https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=1&id=1010156",
-                    "https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=1&id=1010187",
-                    "https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=1&id=1010188",
-                    "https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=1&id=1015441",
-                    "https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=1&id=1015442",
-                    "https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=1&id=1015443",
-                    "https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=1&id=1015444"]
+    url ="https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=0&id=1012878"
 
-    urls_CESA_IM_1 = urls_CESA_IM[:4]
-    urls_CESA_IM_2 = urls_CESA_IM[4:]
-    #df = comparar_ligas({"CESA IM 21" : urls_CESA_IM_1,"CESA IM 22" : urls_CESA_IM_2})
-    df = comparar_partidos(urls_CESA_IM_1)
+
+    partidos, tiempo = cargar_partidos(get_soup(url))
+    equipos = crear_equipos(partidos)
+    #print(equipos)
+    mi_equipo = equipos.elementos[0]
+    print(mi_equipo)
+    df = get_df_partidos(mi_equipo)
+
+    columnas = ['GolesEquipo', 'GolesRival']
+    df = df[columnas]
+    plt.figure(figsize=(8, 6))
+    df.boxplot(column=['GolesEquipo', 'GolesRival'])
+    plt.title('Boxplot de GolesEquipo y GolesRival')
+    plt.ylabel('Número de Goles')
+    plt.show()
+
     #Force df to show all columns
     pd.set_option('display.max_columns', None)  # Muestra todas las columnas
     pd.set_option('display.expand_frame_repr', False)  # Evita dividir las columnas en varias líneas

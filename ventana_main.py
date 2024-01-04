@@ -57,6 +57,7 @@ class VentanaMain(tk.Tk):
         menu_archivo.add_command(label="Abrir", command=self.abrir_archivo)
         menu_archivo.add_command(label="Guardar", command=self.guardar_archivo)
         menu_archivo.add_command(label="Borrar competiciones", command=self.borrar_competiciones)
+        menu_archivo.add_command(label="Añadir competiciones", command=self.annadir_competiciones)
         menu_archivo.add_separator()
         menu_archivo.add_command(label="Salir", command=self.salir)
         self.barra_menu.add_cascade(label="Archivo", menu=menu_archivo)
@@ -93,7 +94,7 @@ class VentanaMain(tk.Tk):
                            command=lambda : self.mostrar_df_estadisticas(), style="Boton.TButton")
         boton.grid(row=1, column=1, padx=10, pady=10, sticky="nsew")
         boton = ttk.Button(self, text=f"Exportar Estadísticas",
-                          command =  lambda:  self.abrir_ventana_exportar(), style="Boton.TButton")
+                           command =  lambda:  self.abrir_ventana_exportar_estadisticas(), style="Boton.TButton")
         boton.grid(row=2, column=1, padx=10, pady=10, sticky="nsew")
 
         # Columna de Partidos
@@ -103,7 +104,7 @@ class VentanaMain(tk.Tk):
                             command=lambda : self.mostrar_partidos(), style="Boton.TButton")
         boton.grid(row=1, column=2, padx=10, pady=10, sticky="nsew")
         boton = ttk.Button(self, text=f"Exportar Partidos",
-                            command =  lambda:  self.exportar_partidos(), style="Boton.TButton")
+                           command =  lambda:  self.abrir_ventana_exportar_partidos(), style="Boton.TButton")
         boton.grid(row=2, column=2, padx=10, pady=10, sticky="nsew")
 
 
@@ -148,6 +149,20 @@ class VentanaMain(tk.Tk):
         self.guardar_configuracion()
         self.df_estadisticas = None
         self.df_partidos = None
+
+    def annadir_competiciones(self):
+        filepath = filedialog.askopenfilename(filetypes=[("Archivo SHStats", "*.shs"), ("Todos los archivos", "*.*")])
+        if filepath:
+            with open(filepath, "r") as archivo:
+                nuevas_ligas = json.load(archivo)
+                nuevas_ligas = nuevas_ligas.get("ligas", [])
+                for liga in nuevas_ligas:
+                    self.competiciones.append(competicion(nombre=liga["nombre"], enlaces=liga["enlaces"]))
+            self.guardar_configuracion()
+            self.actualizar_listbox()
+            self.df_estadisticas = None
+            self.df_partidos = None
+
 
     def abrir_archivo(self):
         # Agrega la lógica para abrir un archivo
@@ -211,7 +226,7 @@ class VentanaMain(tk.Tk):
 
     def mostrar_graficos(self):
         if self.df_estadisticas is None:
-            self.df_estadisticas = self.get_dataframe()
+            self.df_estadisticas = self.get_df_estadisticas()
         if self.df_estadisticas is None:
             return
         plt.bar(self.df_estadisticas["nombre"], self.df_estadisticas["avg_goles"], color ="blue")
@@ -226,69 +241,36 @@ class VentanaMain(tk.Tk):
         # plt.show()
 
     def mostrar_partidos(self):
-        urls = []
         if self.df_partidos is None:
-            for liga in self.competiciones:
-                urls.extend(liga.enlaces)
-            partidos = analisis.comparar_partidos(urls)
-        else:
-            partidos = self.df_partidos
-        if partidos is None:
+            self.df_partidos = self.get_df_partidos()
+        if self.df_partidos is None:
             return
-
-        try:
-            with open("config/config_partidos.json", "r") as archivo:
-                configuracion = json.load(archivo)
-            print(configuracion)
-            if configuracion["Columna diferencia"] == True:
-                columna = abs(partidos["GL"] - partidos["GV"])
-                partidos.insert(4, "DIF", columna)
-
-
-            if configuracion["Columna goles totales"] == True:
-                columna = partidos["GL"] + partidos["GV"]
-                partidos.insert(5, "GT", columna)
-
-            if configuracion["Columna fecha"] == False:
-                partidos = partidos.drop(columns=["Fecha"])
-        except:
-            messagebox.showerror("Error", "Error al cargar la configuración personalizada de partidos.")
-
 
         ventana_partidos = tk.Toplevel(self)
         ventana_partidos.title("Ventana de Partidos")
         # Crear un widget tk.Treeview para mostrar el DataFrame en la nueva ventana
         tree = ttk.Treeview(ventana_partidos)
-        tree["columns"] = list(partidos.columns)
+        tree["columns"] = list(self.df_partidos.columns)
         #tree.heading("#0", text="Índice")
-        for col in partidos.columns:
+        for col in self.df_partidos.columns:
             tree.heading(col, text=col)
 
         # Agregar filas al tk.Treeview
-        for index, row in partidos.iterrows():
+        for index, row in self.df_partidos.iterrows():
             tree.insert("", tk.END, values=list(row))
 
         tree.pack(padx=10, pady=10)
-        self.df_partidos = partidos
 
-    def exportar_partidos(self):
-        urls = []
+    def abrir_ventana_exportar_partidos(self):
         if self.df_partidos is None:
-            for liga in self.competiciones:
-                urls.extend(liga.enlaces)
-            self.df_partidos = analisis.comparar_partidos(urls)
+            self.df_partidos = self.get_df_partidos()
         if self.df_partidos is None:
             return
         ventana_exportar = ExportarVentana(self.df_partidos)
 
-
-
-
-
-
-    def abrir_ventana_exportar(self):
+    def abrir_ventana_exportar_estadisticas(self):
         if self.df_estadisticas is None:
-            self.df_estadisticas = self.get_dataframe()
+            self.df_estadisticas = self.get_df_estadisticas()
         if self.df_estadisticas is None:
             return
         ventana_exportar = ExportarVentana(self.df_estadisticas)
@@ -307,36 +289,64 @@ class VentanaMain(tk.Tk):
             self.competiciones.remove(liga)
             self.actualizar_listbox()
 
+    def get_df_partidos(self):
+        urls = []
+        if self.df_partidos is None:
+            for liga in self.competiciones:
+                urls.extend(liga.enlaces)
+            self.df_partidos = analisis.get_partidos(urls)
+        if self.df_partidos is None:
+            return
 
-    def get_dataframe(self):
-        #Hacemos la tarea
         try:
-            ligas_y_enlaces = {}
-            with open("config/config_estadisticas.json", "r") as archivo:
+            with open("config/config_partidos.json", "r") as archivo:
                 configuracion = json.load(archivo)
-            if configuracion["Separar por competiciones"] == False:
-                ligas_y_enlaces ["Competicion"] = []
-                for competicion in self.competiciones:
-                    ligas_y_enlaces ["Competicion"].extend(competicion.enlaces)
-            else:
-                for competicion in self.competiciones:
-                    ligas_y_enlaces [competicion.nombre] = competicion.enlaces
-            self.df_estadisticas = analisis.comparar_ligas(ligas_y_enlaces)
-            if configuracion["Separar por competiciones"] == False:
-                self.df_estadisticas = self.df_estadisticas.drop(columns=["nombre", "federacion", "liga", "temporada"])
-            return self.df_estadisticas
-        except Exception as e:
-            if len(self.competiciones) == 0:
-                messagebox.showerror("Error", "No hay ligas para comparar.\nAñade ligas para poder compararlas.")
-            else:
-                messagebox.showerror("Error", f"Ha ocurrido un error al intentar obtener las estadísticas de \"{competicion.nombre}\".\nVerifica que las urls sean correctas.")
+            print(configuracion)
+            if configuracion["Columna diferencia"] == True:
+                columna = abs(self.df_partidos["GL"] - self.df_partidos["GV"])
+                self.df_partidos.insert(4, "DIF", columna)
 
+            if configuracion["Columna goles totales"] == True:
+                columna = self.df_partidos["GL"] + self.df_partidos["GV"]
+                self.df_partidos.insert(5, "GT", columna)
+
+            if configuracion["Columna fecha"] == False:
+                self.df_partidos = self.df_partidos.drop(columns=["Fecha"])
+            return self.df_partidos
+        except Exception as e:
+            messagebox.showerror("Error", "Error al cargar la configuración personalizada de partidos.")
             print(e)
             return None
 
+    def get_df_estadisticas(self):
+            #Hacemos la tarea
+            try:
+                ligas_y_enlaces = {}
+                with open("config/config_estadisticas.json", "r") as archivo:
+                    configuracion = json.load(archivo)
+                if configuracion["Separar por competiciones"] == False:
+                    ligas_y_enlaces ["Competicion"] = []
+                    for competicion in self.competiciones:
+                        ligas_y_enlaces ["Competicion"].extend(competicion.enlaces)
+                else:
+                    for competicion in self.competiciones:
+                        ligas_y_enlaces [competicion.nombre] = competicion.enlaces
+                self.df_estadisticas = analisis.comparar_ligas(ligas_y_enlaces)
+                if configuracion["Separar por competiciones"] == False:
+                    self.df_estadisticas = self.df_estadisticas.drop(columns=["nombre", "federacion", "liga", "temporada"])
+                return self.df_estadisticas
+            except Exception as e:
+                if len(self.competiciones) == 0:
+                    messagebox.showerror("Error", "No hay ligas para comparar.\nAñade ligas para poder compararlas.")
+                else:
+                    messagebox.showerror("Error", f"Ha ocurrido un error al intentar obtener las estadísticas de \"{competicion.nombre}\".\nVerifica que las urls sean correctas.")
+
+                print(e)
+                return None
+
     def mostrar_df_estadisticas(self):
         if self.df_estadisticas is None:
-            self.get_dataframe()
+            self.get_df_estadisticas()
         if self.df_estadisticas is None:
             return
 
@@ -399,6 +409,7 @@ class VentanaMain(tk.Tk):
     def actualizar_listbox(self):
         self.listbox.delete(0, tk.END)
         self.df_estadisticas = None
+        self.df_partidos = None
         for liga in self.competiciones:
             self.listbox.insert(tk.END, liga.nombre)
 

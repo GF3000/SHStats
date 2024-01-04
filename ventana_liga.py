@@ -1,7 +1,10 @@
 import json
 import tkinter as tk
 from tkinter import simpledialog, messagebox, ttk
+from SH_Stats_back import funciones_auxiliares
 from SH_Stats_back import analisis
+from ventana_equipos import VentanaEquipos
+from ventana_exportar import ExportarVentana
 
 
 class SegundaVentana(tk.Toplevel):
@@ -30,7 +33,7 @@ class SegundaVentana(tk.Toplevel):
                                font=self.fuentes["textos"])
 
         self.title(f"Liga: {liga.nombre}")
-        self.geometry("800x400")
+        self.geometry("1000x400")
         self.liga = liga
         self.df = None
 
@@ -80,6 +83,11 @@ class SegundaVentana(tk.Toplevel):
 
         # Columna 4
 
+        self.label_col4 = ttk.Label(self, text="Equipos", style="Title.TLabel")
+        self.label_col4.grid(row=0, column=3, padx=10, pady=10)
+        self.boton_equipos = ttk.Button(self, text="Ver Equipos", command=lambda: self.cargar_ventana_equipos(),
+                                        style="Boton.TButton")
+        self.boton_equipos.grid(row=1, column=3, padx=10, pady=10, sticky="nsew")
 
 
 
@@ -96,7 +104,7 @@ class SegundaVentana(tk.Toplevel):
 
     def get_dataframe(self):
         try:
-            df = analisis.comparar_partidos(self.liga.enlaces)
+            df = analisis.get_partidos(self.liga.enlaces)
             return df
         except Exception as e:
             print(e)
@@ -110,7 +118,7 @@ class SegundaVentana(tk.Toplevel):
             return
         ventana_dataframe = tk.Toplevel(self)
         ventana_dataframe.title("Tabla de Datos")
-        ventana_dataframe.geometry("1000x600")
+        ventana_dataframe.geometry("1000x400")
         tabla = ttk.Treeview(ventana_dataframe)
         tabla["columns"] = list(self.df.columns)
         tabla["show"] = "headings"
@@ -125,15 +133,7 @@ class SegundaVentana(tk.Toplevel):
             self.df = self.get_dataframe()
         if self.df is None:
             return
-        ventana_exportar = tk.Toplevel(self)
-        ventana_exportar.title("Exportar Datos")
-        ventana_exportar.geometry("500x200")
-        ttk.Label(ventana_exportar, text="Nombre del archivo:").pack(pady=5)
-        nombre_archivo_entry = ttk.Entry(ventana_exportar)
-        nombre_archivo_entry.insert(0, self.liga.nombre)
-        nombre_archivo_entry.pack(pady=5)
-        ttk.Button(ventana_exportar, text="Exportar a Excel", command=lambda: self.exportar_a_excel(self.df, nombre_archivo_entry.get(), ventana_exportar)).pack(pady=5)
-        ttk.Button(ventana_exportar, text="Exportar a CSV", command=lambda: self.exportar_a_csv(self.df, nombre_archivo_entry.get(), ventana_exportar)).pack(pady=5)
+        ventana_exportar = ExportarVentana(self.df)
     def exportar_a_excel(self, df, nombre_archivo, ventana):
         try:
             df.to_excel("exports/" + nombre_archivo + ".xlsx")
@@ -159,6 +159,7 @@ class SegundaVentana(tk.Toplevel):
         entry_enlace.pack(pady=5)
         def guardar_enlace():
             nuevo_enlace = entry_enlace.get()
+            nuevo_enlace = funciones_auxiliares.convert_url(nuevo_enlace)
             self.liga.enlaces.append(nuevo_enlace)
             self.actualizar_botones_enlaces()
             ventana_annadir_enlace.destroy()
@@ -173,26 +174,27 @@ class SegundaVentana(tk.Toplevel):
         ventana_edicion.title("Edición de Enlace")
 
         # Etiqueta y caja de texto para editar el enlace
-        ttk.Label(ventana_edicion, text="Editar Enlace:", style="Title.TLabel").pack(pady=5)
+        ttk.Label(ventana_edicion, text="Editar Enlace:", style="Title.TLabel").grid(row=0, column=0, columnspan=2,padx=10, pady=10)
         entry_enlace = ttk.Entry(ventana_edicion, font=self.fuentes["botones"], width=50)
         entry_enlace.insert(0, enlace)
-        entry_enlace.pack(pady=5)
+        entry_enlace.grid(row=1, column=0, columnspan=2, padx=10, pady=10)
 
         # Función para guardar el enlace editado
         def guardar_enlace():
             nuevo_enlace = entry_enlace.get()
+            nuevo_enlace = funciones_auxiliares.convert_url(nuevo_enlace)
             self.liga.enlaces[self.liga.enlaces.index(enlace)] = nuevo_enlace
             self.actualizar_botones_enlaces()
             ventana_edicion.destroy()
 
         # Botón para guardar el enlace
         btn_guardar = ttk.Button(ventana_edicion, text="Guardar", command=guardar_enlace, style="BotonVerde.TButton")
-        btn_guardar.pack(pady=5)
+        btn_guardar.grid(row=2, column=0, padx=10, pady=10)
 
         # Botón para borrar el enlace
         btn_borrar = ttk.Button(ventana_edicion, text="Borrar",
                                command=lambda: self.borrar_enlace(enlace_en_uso, ventana_edicion),style="BotonRojo.TButton")
-        btn_borrar.pack(pady=5)
+        btn_borrar.grid(row=2, column=1, padx=10, pady=10)
 
     def borrar_enlace(self, enlace, ventana_edicion): # Aquí puedes realizar acciones para borrar el enlace, por ejemplo, actualizar tu lista de enlaces
             if enlace in self.liga.enlaces:
@@ -227,3 +229,7 @@ class SegundaVentana(tk.Toplevel):
     def mostrar_mensaje(self, mensaje):
         mensaje = mensaje + "\n (Esta función aún no está implementada)"
         messagebox.showinfo("Mensaje", mensaje)
+
+    def cargar_ventana_equipos(self):
+        ventana_equipos = VentanaEquipos(self.liga)
+        ventana_equipos.mainloop()

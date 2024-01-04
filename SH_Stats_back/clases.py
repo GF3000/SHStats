@@ -44,7 +44,7 @@ class equipo:
 
     def __eq__(self, otro) -> bool:
         return isinstance(otro,
-                          equipo) and self.nombre == otro.nombre and self.liga == otro.liga and self.grupo == otro.grupo and self.temporada == otro.temporada
+                          equipo) and self.nombre == otro.nombre  and self.temporada == otro.temporada
 
     def __str__(self) -> str:
         return self.nombre + "-> GF: " + str(self.gf) + " GC: " + str(self.gc)
@@ -72,7 +72,6 @@ class equipo:
             "derrotas": self.derrotas,
             "empates": self.empates
         }
-
 
 class partido:
 
@@ -110,9 +109,13 @@ class partido:
 
 
 class listado_equipos:
-    def __init__(self, elementos=[]) -> None:
-        self.elementos = elementos
+    def __init__(self, elementos=None) -> None:
+        if elementos is None:
+            self.elementos = []
+        else:
+            self.elementos = elementos
         self.indice = 0
+        print(f"Número de elementos: {len(self.elementos)}")
 
     def __contains__(self, item):
         for elemento in self.elementos:
@@ -162,12 +165,24 @@ class listado_equipos:
                 return elemento
         return None
 
+    def buscar_por_nombre(self, nombre):
+        for elemento in self.elementos:
+            if elemento.nombre == nombre:
+                return elemento
+        return None
+
     def to_dict(self):
         diccionario = {}
         for elemento in self.elementos:
             nombre = elemento.nombre
             diccionario[nombre] = elemento.to_dict()
         return diccionario
+
+    def get_nombre_equipos(self):
+        nombres = []
+        for elemento in self.elementos:
+            nombres.append(elemento.nombre)
+        return nombres
 
 
 
