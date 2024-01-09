@@ -4,7 +4,7 @@
 Spanish Handball Stats es la primera herramienta de extracción de datos aumática diseñada para el balonmano español. Utiliza técnicas de Web Scrapping para extraer datos de los partidos registrados en la página de la [Real Federación Española de Balonmano](rfebm.com) recopilando así estadísitcas para el usuario. 
 
 ## Autor
-**Guillermo Franco**
+**Guillermo Franco**  
 **Twitter:** [@GuilleFrancoBM](https://twitter.com/GuilleFrancoBM)  
 **Instagram:** [@_guillermofranco_](https://www.instagram.com/_guillermofranco_/)  
 **GitHub:** [GF3000](https://github.com/GF3000)  
