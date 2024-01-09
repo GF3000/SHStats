@@ -12,13 +12,18 @@ class ExportarVentana():
             return
         self.df = df
 
-        ruta_archivo = filedialog.asksaveasfilename(defaultextension=".xlsx", filetypes=[("Excel", "*.xlsx"), ("CSV", "*.csv")])
+        ruta_archivo = filedialog.asksaveasfilename(defaultextension=".xlsx", filetypes=[("Excel", "*.xlsx"), ("CSV", "*.csv"), ("JSON", "*.json")])
         if ruta_archivo:
             try:
                 if ruta_archivo.endswith(".xlsx"):
                     self.df.to_excel(ruta_archivo, index=False)
-                else:
+                elif ruta_archivo.endswith(".csv"):
                     self.df.to_csv(ruta_archivo, index=False)
+                elif ruta_archivo.endswith(".json"):
+                    self.df.to_json(ruta_archivo, index=False)
+                else:
+                    messagebox.showerror("Error", "Extensión no soportada.")
+
             except Exception as e:
                 messagebox.showerror("Error", f"Error al exportar los datos: {e}")
         else:

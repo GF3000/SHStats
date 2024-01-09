@@ -3,6 +3,8 @@ from tkinter import ttk, messagebox
 
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import seaborn as sns
+
 from pandastable import Table
 
 import pandas as pd
@@ -117,12 +119,13 @@ class VentanaEquipos(tkinter.Toplevel):
         df = df[columnas]
 
         # Rename columns
-        df = df.rename(columns={'GolesEquipo': 'GF', 'GolesRival': 'GC'})
+        df = df.rename(columns={'GolesEquipo': self.seleccion.get(), 'GolesRival': 'Rival'})
 
 
         # Crear un boxplot usando seaborn (más fácil de manejar para este caso)
+        sns.set(style="whitegrid")
         fig, ax = plt.subplots()
-        df.boxplot(column=['GF', 'GC'])
+        sns.boxplot(data=df, ax=ax, palette="Set3")  # Paleta de colores
         ax.set_ylabel("Goles")
         ax.set_title("Goles por partido")
         fig.tight_layout()
