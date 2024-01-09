@@ -25,7 +25,7 @@ class VentanaMain(tk.Tk):
         self.fuentes = {}
 
         self.cargar_estilos()
-        self.cargar_barra_menu()
+        self.cargar_menu_superior()
         self.cargar_widgets()
         self.cargar_configuracion()
 
@@ -56,7 +56,7 @@ class VentanaMain(tk.Tk):
                                  background="white", foreground="blue", anchor="center", borderwidth=4,
                                  font=self.fuentes["textos"])
 
-    def cargar_barra_menu(self):
+    def cargar_menu_superior(self):
         # Barra de menú
         self.barra_menu = tk.Menu(self)
         self.config(menu=self.barra_menu)
@@ -75,6 +75,7 @@ class VentanaMain(tk.Tk):
         menu_ayuda = tk.Menu(self.barra_menu, tearoff=0)
         menu_ayuda.add_command(label="Acerca de", command=self.acerca_de)
         menu_ayuda.add_command(label="Ayuda", command=self.mostrar_ayuda)
+        menu_ayuda.add_command(label="Enlances", command=self.mostrar_ayuda_enlaces)
         self.barra_menu.add_cascade(label="Ayuda", menu=menu_ayuda)
 
         # Menú Configuración
@@ -231,6 +232,22 @@ class VentanaMain(tk.Tk):
             # Manejar el caso en el que el archivo no existe
             tk.messagebox.showerror("Error", "El archivo 'config/help.txt' no se encuentra.")
 
+    def mostrar_ayuda_enlaces(self):
+        try:
+            with open("config/help_enlaces.txt", "r", encoding="utf-8") as archivo:
+                contenido = archivo.read()
+
+            # Crear una ventana emergente para mostrar el contenido
+            ventana_ayuda = tk.Toplevel(self)
+            ventana_ayuda.title("Ayuda")
+
+            # Etiqueta para mostrar el contenido
+            etiqueta_contenido = ttk.Label(ventana_ayuda, text=contenido, wraplength=400, justify="left",
+                                           font=self.fuentes["textos"])
+            etiqueta_contenido.pack(padx=20, pady=20)
+        except FileNotFoundError:
+            # Manejar el caso en el que el archivo no existe
+            tk.messagebox.showerror("Error", "El archivo 'config/help_enlaces.txt' no se encuentra.")
     def mostrar_graficos(self):
         if self.df_estadisticas is None:
             self.df_estadisticas = self.get_df_estadisticas()
@@ -700,7 +717,14 @@ class VentanaEquipos(tk.Toplevel):
         self.partidos = None
         self.df_partidos = None
 
-        self.cargar_equipos()
+        try:
+            self.cargar_equipos()
+        except Exception as e:
+            self.destroy()
+            messagebox.showerror("Error",
+                                 "Ha ocurrido un error al intentar obtener los datos.\nVerifica que los enlaces sean correctos.")
+            print(e)
+            return
         self.crear_widgets()
 
     def crear_widgets(self):

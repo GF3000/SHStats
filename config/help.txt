@@ -6,12 +6,6 @@ Panel de ayuda
 > Cada competición está formada por uno o más enlaces.
 > Puedes ver estadísticas de los equipos en Competición/Ver Equipos.
 ---------------------------------------------------
-> En la barra superior puedes guardar, cargar y borrar paneles.
+> En "Archivo" de la barra superior puedes guardar, cargar y borrar paneles.
 ---------------------------------------------------
-> Para que un enlace sea válido debe contener el campo "id"
-> URL no válida:
-https://www.rfebm.com/competiciones/competicion.php?seleccion=0&id_categoria=200014&id_temp=2324&id_ambito=1&id_territorial=9999
-> URL válida:
-https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=0&id=1017996
-
-> Puedes encontrar este formato de enlaces en haciendo click en "TODAS" para ver todas las jornadas en la página de la RFEBM
+> Si necesitas ayuda con los enclaces, haz click en "Ayuda/Enlaces".
