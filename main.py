@@ -105,32 +105,32 @@ class VentanaMain(tk.Tk):
         self.label_tabla = ttk.Label(self, text="Estadísticas", style="Title.TLabel")
         self.label_tabla.grid(row=0, column=1, padx=10, pady=3)
 
-        boton = ttk.Button(self, text=f"Ver Estadísticas",
+        self.boton_ver_estadisitcas = ttk.Button(self, text=f"Ver Estadísticas",
                            command=lambda: self.mostrar_df_estadisticas(), style="Boton.TButton")
-        boton.grid(row=1, column=1, padx=10, pady=10, sticky="nsew")
-        boton = ttk.Button(self, text=f"Exportar Estadísticas",
+        self.boton_ver_estadisitcas.grid(row=1, column=1, padx=10, pady=10, sticky="nsew")
+        self.boton_exportar_estadisticas = ttk.Button(self, text=f"Exportar Estadísticas",
                            command=lambda: self.abrir_ventana_exportar_estadisticas(), style="Boton.TButton")
-        boton.grid(row=2, column=1, padx=10, pady=10, sticky="nsew")
+        self.boton_exportar_estadisticas.grid(row=2, column=1, padx=10, pady=10, sticky="nsew")
 
         # Columna de Partidos
         self.label_partidos = ttk.Label(self, text="Partidos", style="Title.TLabel")
         self.label_partidos.grid(row=0, column=2, padx=10, pady=3)
-        boton = ttk.Button(self, text=f"Ver Partidos",
+        self.boton_ver_partidos = ttk.Button(self, text=f"Ver Partidos",
                            command=lambda: self.mostrar_partidos(), style="Boton.TButton")
-        boton.grid(row=1, column=2, padx=10, pady=10, sticky="nsew")
-        boton = ttk.Button(self, text=f"Exportar Partidos",
+        self.boton_ver_partidos.grid(row=1, column=2, padx=10, pady=10, sticky="nsew")
+        self.boton_exportar_partidos = ttk.Button(self, text=f"Exportar Partidos",
                            command=lambda: self.abrir_ventana_exportar_partidos(), style="Boton.TButton")
-        boton.grid(row=2, column=2, padx=10, pady=10, sticky="nsew")
+        self.boton_exportar_partidos.grid(row=2, column=2, padx=10, pady=10, sticky="nsew")
 
         # Columna de Gráficos
         self.label_graficos = ttk.Label(self, text="Gráficos", style="Title.TLabel")
         self.label_graficos.grid(row=0, column=3, padx=10, pady=3)
 
         boton = ttk.Button(self, text=f"Ver Gráficos",
-                           command=lambda: self.mostrar_graficos(), style="Boton.TButton")
+                           command=lambda: self.mostrar_graficos(), style="Boton.TButton", state=tk.DISABLED)
         boton.grid(row=1, column=3, padx=10, pady=10, sticky="nsew")
         boton = ttk.Button(self, text=f"Exportar Gráficos",
-                           command=lambda: self.mostrar_mensaje(f"Exportar Gráficos"), style="Boton.TButton")
+                           command=lambda: self.mostrar_mensaje(f"Exportar Gráficos"), style="Boton.TButton", state=tk.DISABLED)
         boton.grid(row=2, column=3, padx=10, pady=10, sticky="nsew")
 
     def on_select(self, event):
@@ -151,6 +151,7 @@ class VentanaMain(tk.Tk):
         self.competiciones = []
         self.actualizar_listbox()
         self.guardar_configuracion()
+        self.cargar_configuracion()
         self.df_estadisticas = None
         self.df_partidos = None
 
@@ -409,19 +410,38 @@ class VentanaMain(tk.Tk):
             with open("config/ligas.shs", "r") as archivo:
                 configuracion = json.load(archivo)
                 ligas = configuracion.get("ligas", [])
+                if len(ligas) == 0:
+                    estado = tk.DISABLED
+
+                else:
+                    estado = tk.NORMAL
+                self.boton_ver_partidos.config(state=estado)
+                self.boton_ver_estadisitcas.config(state=estado)
+                self.boton_exportar_partidos.config(state=estado)
+                self.boton_exportar_estadisticas.config(state=estado)
+
+
                 self.competiciones = [competicion(nombre=liga["nombre"], enlaces=liga["enlaces"]) for liga in ligas]
                 self.actualizar_listbox()
 
         except FileNotFoundError:
             # Si el archivo no existe, no hay configuración para cargar
+            self.boton_ver_partidos.config(state=tk.DISABLED)
+            self.boton_ver_estadisitcas.config(state=tk.DISABLED)
+            self.boton_exportar_partidos.config(state=tk.DISABLED)
+            self.boton_exportar_estadisticas.config(state=tk.DISABLED)
             pass
 
     def actualizar_listbox(self):
         self.listbox.delete(0, tk.END)
         self.df_estadisticas = None
         self.df_partidos = None
-        for liga in self.competiciones:
-            self.listbox.insert(tk.END, liga.nombre)
+        if len(self.competiciones) == 0:
+            self.listbox.insert(tk.END, "No hay competiones para mostrar")
+        else:
+            self.listbox.delete(0, tk.END)
+            for liga in self.competiciones:
+                self.listbox.insert(tk.END, liga.nombre)
 
 
 class VentanaCompeticion(tk.Toplevel):
@@ -429,7 +449,7 @@ class VentanaCompeticion(tk.Toplevel):
         super().__init__(parent)
 
         self.title(f"Liga: {liga.nombre}")
-        self.geometry("1000x400")
+        self.geometry("750x400")
         self.liga = liga
         self.df = None
         self.parent = parent
@@ -438,7 +458,14 @@ class VentanaCompeticion(tk.Toplevel):
         self.actualizar_botones_enlaces()
 
         self.listbox_enlaces.bind("<<ListboxSelect>>", self.on_select)
+        self.entry_nombre.bind("<KeyRelease>", lambda event: self.actualizar_botones_enlaces())
 
+        # Al cerrar
+        self.protocol("WM_DELETE_WINDOW", self.on_closing)
+
+    def on_closing(self):
+        self.parent.cargar_configuracion()
+        self.destroy()
     def cargar_widgets(self):
         # Columna 1
         self.label_col1 = ttk.Label(self, text="Links", style="Title.TLabel")
@@ -450,9 +477,9 @@ class VentanaCompeticion(tk.Toplevel):
         self.listbox_enlaces = tk.Listbox(self, font=self.parent.fuentes["textos"])
         self.listbox_enlaces.grid(row=2, rowspan=2, column=0, padx=10, pady=10)
 
-        self.boton_cerrar = ttk.Button(self, text="Guardar", command=lambda: self.guardar_liga(self.liga),
-                                       style="BotonVerde.TButton")
-        self.boton_cerrar.grid(row=4, column=0, columnspan=2, padx=10, pady=10, sticky="nsew")
+        self.boton_guardar = ttk.Button(self, text="Guardar", command=lambda: self.guardar_liga(self.liga),
+                                        style="BotonVerde.TButton")
+        self.boton_guardar.grid(row=4, column=0, columnspan=2, padx=10, pady=10, sticky="nsew")
 
         # Columna 2 - Nombre
         self.label_nombre = ttk.Label(self, text="Nombre", style="Title.TLabel")
@@ -466,29 +493,26 @@ class VentanaCompeticion(tk.Toplevel):
         self.label_col3 = ttk.Label(self, text="Opciones", style="Title.TLabel")
         self.label_col3.grid(row=0, column=2, padx=10, pady=10)
 
-        boton = ttk.Button(self, text=f"Configurar Tabla Partidos",
-                           command=lambda: self.mostrar_mensaje(f"Configurar Tabla Partidos"),
-                           style="Boton.TButton")
-        boton.grid(row=1, column=2, padx=10, pady=10, sticky="nsew")
-        boton = ttk.Button(self, text=f"Ver Tabla Partidos",
+        self.boton_equipos = ttk.Button(self, text="Ver Equipos", command=lambda: self.cargar_ventana_equipos(),
+                                        style="Boton.TButton")
+        self.boton_equipos.grid(row=1, column=2, padx=10, pady=10, sticky="nsew")
+        self.boton_ver_tabla_partidos = ttk.Button(self, text=f"Ver Tabla Partidos",
                            command=lambda: self.mostrar_dataframe(),
                            style="Boton.TButton")
-        boton.grid(row=2, column=2, padx=10, pady=10, sticky="nsew")
-        boton = ttk.Button(self, text=f"Exportar Tabla Partidos",
+        self.boton_ver_tabla_partidos.grid(row=2, column=2, padx=10, pady=10, sticky="nsew")
+        self.boton_exportar_tabla_partidos = ttk.Button(self, text=f"Exportar Tabla Partidos",
                            command=lambda: self.exportar_dataframe(),
                            style="Boton.TButton")
-        boton.grid(row=3, column=2, padx=10, pady=10, sticky="nsew")
+        self.boton_exportar_tabla_partidos.grid(row=3, column=2, padx=10, pady=10, sticky="nsew")
         self.boton_borrar = ttk.Button(self, text="Borrar", command=lambda: self.borrar_liga(self.liga),
                                        style="BotonRojo.TButton")
         self.boton_borrar.grid(row=4, column=2, padx=10, pady=10, sticky="nsew")
 
         # Columna 4
 
-        self.label_col4 = ttk.Label(self, text="Equipos", style="Title.TLabel")
-        self.label_col4.grid(row=0, column=3, padx=10, pady=10)
         self.boton_equipos = ttk.Button(self, text="Ver Equipos", command=lambda: self.cargar_ventana_equipos(),
                                         style="Boton.TButton")
-        self.boton_equipos.grid(row=1, column=3, padx=10, pady=10, sticky="nsew")
+        self.boton_equipos.grid(row=1, column=2, padx=10, pady=10, sticky="nsew")
 
     def on_select(self, event):
         try:
@@ -611,12 +635,30 @@ class VentanaCompeticion(tk.Toplevel):
     def actualizar_botones_enlaces(self):
         self.df = None
         self.listbox_enlaces.delete(0, tk.END)
-        for enlace in self.liga.enlaces:
-            if len(enlace) > 18:
-                nuevo_enlace = "..." + enlace[-15:]
-                self.listbox_enlaces.insert(tk.END, nuevo_enlace)
-            else:
-                self.listbox_enlaces.insert(tk.END, enlace)
+        if len(self.liga.enlaces) == 0:
+            estado = tk.DISABLED
+        else:
+            estado = tk.NORMAL
+        self.boton_equipos.config(state=estado)
+        self.boton_ver_tabla_partidos.config(state=estado)
+        self.boton_exportar_tabla_partidos.config(state=estado)
+
+        if (self.entry_nombre.get() == ""):
+            estado = tk.DISABLED
+        else:
+            estado = tk.NORMAL
+        self.boton_guardar.config(state=estado)
+        self.boton_borrar.config(state=estado)
+        if len(self.liga.enlaces) == 0:
+            self.listbox_enlaces.insert(tk.END, "No hay enlaces")
+        else:
+            self.listbox_enlaces.delete(0, tk.END)
+            for enlace in self.liga.enlaces:
+                if len(enlace) > 18:
+                    nuevo_enlace = "..." + enlace[-15:]
+                    self.listbox_enlaces.insert(tk.END, nuevo_enlace)
+                else:
+                    self.listbox_enlaces.insert(tk.END, enlace)
 
     def guardar_liga(self, liga):
         nombre_nuevo = self.entry_nombre.get()
@@ -626,11 +668,13 @@ class VentanaCompeticion(tk.Toplevel):
             liga.nombre = nombre_nuevo
             self.parent.actualizar_listbox()
             self.parent.guardar_configuracion()  # Guarda la configuración al actualizar la liga
+            self.parent.cargar_configuracion()
         self.destroy()
 
     def borrar_liga(self, liga):
         self.parent.borrar_boton_liga(liga)
         self.parent.guardar_configuracion()
+        self.parent.cargar_configuracion()
         self.destroy()
 
     def mostrar_mensaje(self, mensaje):
@@ -648,8 +692,8 @@ class VentanaEquipos(tk.Toplevel):
         tk.Toplevel.__init__(self)
         self.competiciones = competiciones
         self.title("Equipos")
-        self.geometry("1000x800")
-        self.resizable(True, False)
+        self.geometry("1200x800")
+        self.resizable(True, True)
         self.config(bg="white")
         self.equipos = None
         self.nombres_equipos = None
@@ -666,8 +710,8 @@ class VentanaEquipos(tk.Toplevel):
 
         # Menú desplegable
         self.menu_desplegable = ttk.Combobox(self, textvariable=self.seleccion, values=self.nombres_equipos,
-                                             state="normal", width=50)
-        self.menu_desplegable.grid(row=0, column=0, padx=10, pady=10, sticky="w")
+                                             state="normal", width=50, font=self.master.fuentes["botones"])
+        self.menu_desplegable.grid(row=0, column=0,columnspan = 2,  padx=10, pady=10, sticky="w")
 
         self.menu_desplegable.bind('<KeyRelease>', self.actualizar_filtro)
         self.menu_desplegable.bind('<<ComboboxSelected>>', self.mostrar_seleccion)
@@ -701,7 +745,6 @@ class VentanaEquipos(tk.Toplevel):
 
         # Create a text widget
 
-        self.textbox.grid(row=3, column=0, padx=10, pady=10, sticky="w")
         self.textbox.insert(tk.END, f"Liga: {liga}\n")
         self.textbox.insert(tk.END, f"Grupo: {grupo}\n")
         self.textbox.insert(tk.END, f"Temporada: {temporada}\n")
@@ -716,7 +759,7 @@ class VentanaEquipos(tk.Toplevel):
 
     def mostrar_estaditicas_partidos(self, estadisticas):
 
-        self.textbox = tk.Text(self, height=10, width=50)
+        self.textbox = tk.Text(self, height=10, width=35, font=self.master.fuentes["textos"])
         self.textbox.tag_configure("center", justify="center")
         self.textbox.tag_configure("right", justify="right")
         self.textbox.tag_configure("left", justify="left")
@@ -732,8 +775,8 @@ class VentanaEquipos(tk.Toplevel):
         self.textbox.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
 
     def mostrar_graficos(self, df):
-        frame = tk.Frame(self, width=600, height=200)
-        frame.grid(row=2, column=2, padx=10, pady=10, rowspan=2)
+        frame = tk.Frame(self, width=200, height=200)
+        frame.grid(row=2, column=1, padx=10, pady=10, rowspan=2)
 
         columnas = ['GolesEquipo', 'GolesRival']
         df = df[columnas]
@@ -845,7 +888,7 @@ class VentanaEquipos(tk.Toplevel):
         self.treeview_clasificacion.column("#3", width=50)
 
         self.treeview_clasificacion.configure(height=10)
-        self.treeview_clasificacion.grid(row=0, column=2, rowspan=2, padx=10, pady=10)
+        self.treeview_clasificacion.grid(row=1, column=1, rowspan=1, padx=10, pady=10)
 
         # On double click
         self.treeview_clasificacion.bind("<Double-1>", self.on_double_click)

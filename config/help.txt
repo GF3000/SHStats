@@ -1,8 +1,17 @@
-CARGAR DATOS
-1) Añada una competición con "Añadir competición"
-2) Añada un nombre a la competición en la caja de texto debajo de "Nombre"
-3) Añada los enlaces a los resultados pulsando en "Añadir enlace"
-4) Para modificar o borrar un enlace, pulse sobre el enlace en la lista de enlaces
-5) Para borrar la competición, pulse sobre el botón "Borrar"
-6) Para guardar la competición, pulse sobre el botón "Guardar"
-7) Puede modificar la competición pulsando sobre su nombre en la lista de competiciones
+SH_STATS
+Panel de ayuda
+---------------------------------------------------
+> En el panel principal se pueden añadir competiciones.
+> Para añadir una competición, haz click en "Añadir competición" y rellena los campos.
+> Cada competición está formada por uno o más enlaces.
+> Puedes ver estadísticas de los equipos en Competición/Ver Equipos.
+---------------------------------------------------
+> En la barra superior puedes guardar, cargar y borrar paneles.
+---------------------------------------------------
+> Para que un enlace sea válido debe contener el campo "id"
+> URL no válida:
+https://www.rfebm.com/competiciones/competicion.php?seleccion=0&id_categoria=200014&id_temp=2324&id_ambito=1&id_territorial=9999
+> URL válida:
+https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=0&id=1017996
+
+> Puedes encontrar este formato de enlaces en haciendo click en "TODAS" para ver todas las jornadas en la página de la RFEBM
