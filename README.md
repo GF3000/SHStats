@@ -14,7 +14,7 @@ Spanish Handball Stats es la primera herramienta de extracción de datos aumáti
 **GitHub:** [GF3000](https://github.com/GF3000)  
 
 ## Instalación
-Ahora mismo SH Stats no cuenta con una versión ejecutable. Será necesario tener Python instalado con la siguientes librerías instaladas:
+Ahora mismo SH Stats no cuenta con una versión ejecutable. Será necesario tener Python instalado con las siguientes librerías instaladas:
 - **beautifulsoup4:** 4.12.2
 - **certifi:** 2023.11.17
 - **charset-normalizer:** 3.3.2
