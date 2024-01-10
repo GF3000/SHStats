@@ -5,8 +5,10 @@ class competicion:
         self.enlaces = enlaces if enlaces else []
 
     def __str__(self):
-        return f"{self.nombre} - index = {self.index} - {self.enlaces}"
+        return f"{self.nombre} - enlaces = {self.enlaces}"
 
     def __repr__(self):
-        return f"{self.nombre} - index = {self.index} - {self.enlaces}"
+        return f"{self.nombre} - enlaces = {self.enlaces}"
+
+
 

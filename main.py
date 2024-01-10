@@ -680,8 +680,8 @@ class VentanaCompeticion(tk.Toplevel):
     def guardar_liga(self, liga):
         nombre_nuevo = self.entry_nombre.get()
         if nombre_nuevo:
-            if liga not in self.parent.competiciones:
-                self.parent.competiciones.append(liga)
+            if liga not in self.parent.listado_competiciones:
+                self.parent.listado_competiciones.append(liga)
             liga.nombre = nombre_nuevo
             self.parent.actualizar_listbox()
             self.parent.guardar_configuracion()  # Guarda la configuración al actualizar la liga
