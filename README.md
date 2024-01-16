@@ -1,6 +1,4 @@
 # SH Stats
-**Un partido, un dato**
-
 ![Logo SHStats](https://github.com/GF3000/SHStats/blob/dev/config/logo_shs_sf_dark.ico)  
 ## Introducción 
 Spanish Handball Stats es la primera herramienta de extracción de datos aumática diseñada para el balonmano español. Utiliza técnicas de Web Scrapping para extraer datos de los partidos registrados en la página de la [Real Federación Española de Balonmano](https://www.rfebm.com/) recopilando así estadísitcas para el usuario. 
