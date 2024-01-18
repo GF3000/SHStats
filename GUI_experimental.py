@@ -10,6 +10,8 @@ import pandas as pd
 from CTkListbox import *
 from PIL import Image
 from customtkinter import CTkSegmentedButton, CTkImage
+from matplotlib import pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 import SH_Stats_back.gestor as gestor
 
@@ -400,23 +402,51 @@ class App(customtkinter.CTk):
             nombres_equipos.append(equipo.nombre)
         self.equipos_buscador_combobox.configure(values=nombres_equipos)
         self.equipos_buscador_combobox.set("")
-        self.equipos_estadisticas_text.configure(state="normal")
-        self.equipos_estadisticas_text.delete("1.0", "end")
-        self.equipos_estadisticas_text.insert("end", "Visualización de Estadísticas")
-        self.equipos_estadisticas_text.configure(state="disabled")
+        # Clear frame
+        for widget in self.equipos_estadisticas_frame.winfo_children():
+            widget.destroy()
+        for widget in self.equipos_graficos_frame.winfo_children():
+            widget.destroy()
 
-        # TODO: En desarrollo
+
+        # self.boxplot_equipo.get_tk_widget().pack_forget()
+
+
+        # Tab General - Estadísticas
         estadisticas = self.panel.get_estadisticas_competicion(nombre_competicion)
         # Delete goles_ganadores, goles_perdedores, goles_locales, goles_visitantes
         del estadisticas["goles_ganadores"]
         del estadisticas["goles_perdedores"]
         del estadisticas["goles_por_partido"]
-        self.estadisticas_text.configure(state="normal")
-        self.estadisticas_text.delete("1.0", "end")
+        # Clear frame
+        for widget in self.estadisticas_frame.winfo_children():
+            widget.destroy()
+
         for estadistica in estadisticas:
-            self.estadisticas_text.insert("end", str(estadistica) + ": " + str(estadisticas[estadistica]))
-            self.estadisticas_text.insert("end", "\n")
-        self.estadisticas_text.configure(state="disabled")
+            label = customtkinter.CTkLabel(self.estadisticas_frame, text=estadistica + ": " + str(estadisticas[estadistica]))
+            label.pack()
+
+
+        # Tab General - Gráficos
+        # Gráficos
+        estadisticas = self.panel.get_estadisticas_competicion(nombre_competicion)
+        gf = estadisticas["goles_ganadores"]
+        gc = estadisticas["goles_perdedores"]
+        goles = [gf, gc]
+        labels = ["Goles ganadores", "Goles perdedores"]
+        fig, ax = self.crear_boxplot(datos=goles, labels=labels, titulo="Boxplot de goles de " + nombre_competicion, ylabel="Goles", xlabel="Tipo de gol", dark=True)
+
+        plt.tight_layout()
+
+        # Clear frame
+        for widget in self.graficos_frame.winfo_children():
+            widget.destroy()
+
+        # Add figure to
+        self.boxplot_competicion = FigureCanvasTkAgg(fig, master=self.graficos_frame)
+        self.boxplot_competicion.draw()
+        self.boxplot_competicion.get_tk_widget().pack(expand=True, fill="both", padx=10, pady=10)
+
 
 
 
@@ -446,7 +476,6 @@ class App(customtkinter.CTk):
     def get_competicion(self, nombre):
         return self.panel.get_competicion(nombre)
     def annadir_competicion_event(self):
-        #TODO: Actualizar BBDD, no funciona
         print("Añadir competición")
         self.panel.add_competicion(gestor.Competicion(nombre=self.annadir_competicion_entry.get(), actualizar_al_iniciar=False, nombre_bd=self.panel.archivo_bd))
         self.actualizar_competicion_listview()
@@ -522,6 +551,7 @@ class App(customtkinter.CTk):
 
 
     def seleccionar_equipos(self, nombre_equipo):
+        print("Seleccionando equipo: " + nombre_equipo)
         competicion = self.get_competicion(self.competicion_label.cget("text"))
         equipo = competicion.get_equipo(nombre_equipo)
         estadisticas = competicion.get_estadisticas_equipo(equipo)
@@ -530,16 +560,73 @@ class App(customtkinter.CTk):
         del estadisticas["empates"]
         del estadisticas["gf"]
         del estadisticas["gc"]
-        self.equipos_estadisticas_text.configure(state="normal")
-        self.equipos_estadisticas_text.delete("1.0", "end")
-        for estadistica in estadisticas:
-            self.equipos_estadisticas_text.insert("end", str(estadistica) + ": " + str(estadisticas[estadistica]))
-            self.equipos_estadisticas_text.insert("end", "\n")
-        self.equipos_estadisticas_text.configure(state="disabled")
+
+        # Clear frame
+        for widget in self.equipos_estadisticas_frame.winfo_children():
+            widget.destroy()
+
+        for key, value in estadisticas.items():
+            label = customtkinter.CTkLabel(self.equipos_estadisticas_frame, text=key + ": " + str(value))
+            label.pack()
+
+
+        # Gráficos
+        gf = competicion.get_estadisticas_equipo(equipo)["gf"]
+        gc = competicion.get_estadisticas_equipo(equipo)["gc"]
+        goles = [gf, gc]
+        labels = ["Goles a favor", "Goles en contra"]
+        fig, ax = self.crear_boxplot(datos=goles, labels=labels, titulo="Boxplot de goles de " + nombre_equipo, ylabel="Goles", xlabel="Tipo de gol", dark=True)
+
+        plt.tight_layout()
+
+        # Clear frame
+        for widget in self.equipos_graficos_frame.winfo_children():
+            widget.destroy()
+
+        # Add figure to
+        self.boxplot_equipo = FigureCanvasTkAgg(fig, master=self.equipos_graficos_frame)
+        self.boxplot_equipo.draw()
+        self.boxplot_equipo.get_tk_widget().pack(expand=True, fill="both", padx=10, pady=10)
+
+        # Al finalizar
+        # Actualizar combobox con todos los equipos
         nombres_equipos = []
         for equipo in competicion.get_equipos():
             nombres_equipos.append(equipo.nombre)
         self.equipos_buscador_combobox.configure(values=nombres_equipos)
+
+
+    def crear_boxplot(self, ax = None, datos = None, labels = None, titulo = None, ylabel = None, xlabel = None, dark = True):
+        color_fondo = "#2a2d2e" if dark else "white"
+        color_texto = "white" if dark else "black"
+        if ax is None:
+            fig, ax = plt.subplots(facecolor=color_fondo)
+        else:
+            fig = None
+        ax.boxplot(datos, patch_artist=True,
+                   showfliers=False,
+                   medianprops={"color": "white", "linewidth": 1},
+                   boxprops={"facecolor": "C0", "edgecolor": "white",
+                             "linewidth": 0.5},
+                   whiskerprops={"color": "C0", "linewidth": 1.5},
+                   capprops={"color": "C0", "linewidth": 1.5},
+                   meanprops={"marker": "D", "markerfacecolor": color_texto, "markeredgecolor": color_texto, "markersize": 10},
+                     flierprops={"marker": "o", "markerfacecolor": color_texto, "markeredgecolor": color_texto, "markersize": 10},
+                     )
+        ax.spines["bottom"].set_color(color_texto)
+        ax.spines["left"].set_color(color_texto)
+        ax.spines["top"].set_color(color_texto)
+        ax.spines["right"].set_color(color_texto)
+        ax.tick_params(axis='x', colors=color_texto, labelsize=14)
+        ax.tick_params(axis='y', colors=color_texto, labelsize=14)
+        ax.set_facecolor(color_fondo)
+        ax.set_xticklabels(labels, color=color_texto, fontdict={"fontsize": 16})
+        ax.set_title(titulo, color=color_texto, fontdict={"fontsize": 20})
+        ax.set_ylabel(ylabel, color=color_texto, fontdict={"fontsize": 16})
+        ax.set_xlabel(xlabel, color=color_texto, fontdict={"fontsize": 16})
+
+        plt.tight_layout()
+        return fig, ax
 
 
     def annadir_enlace(self):
