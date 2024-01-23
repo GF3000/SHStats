@@ -11,12 +11,13 @@ import pandas as pd
 from CTkListbox import *
 from PIL import Image
 from customtkinter import CTkSegmentedButton, CTkImage
-from matplotlib import pyplot as plt
+from matplotlib import pyplot as plt, ticker
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 import SH_Stats_back.gestor as gestor
 
 PANEL_PATH = "config/panel.db"
+ORDENAR_PARTIDOS_POR = {"Mayor diferencia":1, "Menor diferencia":2, "Más goles por partido":3, "Menos goles por partido":4, "Más goles ganadores":5, "Menos goles ganadores":6, "Más goles perdedores":7, "Menos goles perdedores":8}
 class App(customtkinter.CTk):
     panel = gestor.Panel("Panel Predeterminado", [])
     def __init__(self):
@@ -52,7 +53,7 @@ class App(customtkinter.CTk):
 
 
 
-        self.btn_actualizar_panel = customtkinter.CTkButton(self.sidebar_frame, text ="Actualizar Panel", command=lambda : self.show_message("Función no implementada"))
+        self.btn_actualizar_panel = customtkinter.CTkButton(self.sidebar_frame, text ="Actualizar Panel", command=lambda : self.ventana_actualizar_panel())
         self.btn_actualizar_panel.grid(row=1, column=0, padx=20, pady=10)
         self.sidebar_frame.rowconfigure(2, weight=5)
 
@@ -64,7 +65,7 @@ class App(customtkinter.CTk):
         self.btn_borrar_panel = customtkinter.CTkButton(self.sidebar_frame, text ="Borrar Panel", command=self.borrar_panel)
         self.btn_borrar_panel.grid(row=5, column=0, padx=20, pady=10)
         self.btn_annadir_al_panel = customtkinter.CTkButton(self.sidebar_frame, text ="Añadir al Panel", command=self.annadir_al_panel)
-        self.btn_annadir_al_panel.grid(row=6, column=0, padx=20, pady=10)
+        # self.btn_annadir_al_panel.grid(row=6, column=0, padx=20, pady=10)
         self.sidebar_frame.rowconfigure(7, weight=5)
         self.btn_exportar_partidos = customtkinter.CTkButton(self.sidebar_frame, text="Exportar Partidos",
                                                              command=self.exportar_partidos, state="normal")
@@ -76,7 +77,7 @@ class App(customtkinter.CTk):
         self.sidebar_frame.rowconfigure(10, weight=5)
 
         self.btn_ajustes = customtkinter.CTkButton(self.sidebar_frame, text ="Ajustes", command= lambda : self.show_message("Función no implementada"))
-        self.btn_ajustes.grid(row=11, column=0, padx=20, pady=10, sticky="s")
+        #self.btn_ajustes.grid(row=11, column=0, padx=20, pady=10, sticky="s")
         self.btn_salir = customtkinter.CTkButton(self.sidebar_frame, text ="Salir", command= lambda : self.destroy())
         self.btn_salir.grid(row=12, column=0, padx=20, pady=10, sticky="s")
 
@@ -136,18 +137,9 @@ class App(customtkinter.CTk):
         self.tabview_competicion.pack(expand=True, fill="both", padx=10, pady=10)
         self.tabview_competicion.add("General")
         self.tabview_competicion.add("Equipos")
+        self.tabview_competicion.add("Partidos")
 
-        # Competicion/Enlaces
-
-
-
-
-        # self.btn_enlaces_borrar = customtkinter.CTkButton(self.enlaces_frame, text="Borrar Enlace", command=self.borrar_enlace, state="disabled")
-        # self.btn_enlaces_borrar.grid(row=3, column=1, padx=(10,0), pady=20, sticky="s")
-
-
-
-        # Competiciones/General
+        # Competicion/General
         self.general_segmented_button_var = tk.StringVar(value="Visualizando")
         self.general_tabview = customtkinter.CTkTabview(self.tabview_competicion.tab("General"))
         self.general_tabview.pack(expand=True, fill="both", padx=0, pady=(0,10))
@@ -155,7 +147,7 @@ class App(customtkinter.CTk):
         self.general_tabview.add("Clasificación")
         self.general_tabview.add("Gráficos")
 
-        # Competiciones/General/Estadísticas
+        # Competicion/General/Estadísticas
         self.estadisticas_frame = customtkinter.CTkFrame(self.general_tabview.tab("Estadísticas"), corner_radius=10)
         self.estadisticas_frame.pack(expand=True, fill="both")
         self.estadisticas_frame.grid_propagate(True)
@@ -166,13 +158,27 @@ class App(customtkinter.CTk):
 
 
 
-        # Competiciones/General/Clasificación
-        self.clasificacion_frame = customtkinter.CTkScrollableFrame(self.general_tabview.tab("Clasificación"), corner_radius=10)
+        # Competicion/General/Clasificación
+        self.clasificacion_frame = customtkinter.CTkFrame(self.general_tabview.tab("Clasificación"), corner_radius=10)
         self.clasificacion_frame.pack(expand=True, fill="both")
+        self.clasificacion_frame.grid_propagate(True)
+        # Configure columns
+        self.clasificacion_frame.columnconfigure(0, weight=1)
+        self.clasificacion_frame.columnconfigure(1, weight=0)
+        # Confugure rows
+        self.clasificacion_frame.rowconfigure(0, weight=1)
+        self.clasificacion_frame.rowconfigure(1, weight=0)
+
         # Add treeview
         tamanno = len(self.panel.get_competicion(self.competicion_label.cget("text")).get_equipos()) if self.panel is not None else 2
-        self.clasificacion_treeview = ttk.Treeview(self.clasificacion_frame, height=tamanno)
-        self.clasificacion_treeview.pack(expand=True, fill="both", padx=10, pady=10)
+        self.clasificacion_treeview = ttk.Treeview(self.clasificacion_frame)
+        self.clasificacion_treeview.grid(row=0, column=0, padx=(10,0), pady=10, sticky="nsew")
+        # Add scrollbar
+        self.clasificacion_treeview_scrollbar = customtkinter.CTkScrollbar(self.clasificacion_frame, command=self.clasificacion_treeview.yview, hover=True)
+        self.clasificacion_treeview_scrollbar.grid(row=0, column=1, padx=(2,10), pady=10, sticky="ns")
+        self.clasificacion_treeview.configure(yscrollcommand=self.clasificacion_treeview_scrollbar.set)
+
+
         # Configure Style
         style = ttk.Style()
 
@@ -198,7 +204,7 @@ class App(customtkinter.CTk):
         style.map("Treeview.Heading",
                   background=[('active', '#3484F0')])
 
-        # Configure treeview
+        # Configurar Classificación Treeview
         self.clasificacion_treeview["columns"] = ('Puesto', 'nombre', 'temporada', 'gf', 'gc', 'victorias', 'derrotas', 'empates')
         self.clasificacion_treeview.column("#0", width=0, stretch="no")
         self.clasificacion_treeview.column("Puesto", width=15, anchor="center")
@@ -218,7 +224,7 @@ class App(customtkinter.CTk):
         self.clasificacion_treeview.heading("derrotas", text="D", anchor="center")
         self.clasificacion_treeview.heading("empates", text="E", anchor="center")
 
-        # Competiciones/General/Gráficos
+        # Competicion/General/Gráficos
         self.graficos_frame = customtkinter.CTkScrollableFrame(self.general_tabview.tab("Gráficos"), corner_radius=10)
         self.graficos_frame.pack(expand=True, fill="both")
         self.graficos_text = customtkinter.CTkTextbox(self.graficos_frame, border_width=0)
@@ -226,23 +232,23 @@ class App(customtkinter.CTk):
         self.graficos_text.configure(state="disabled")
         self.graficos_text.pack(expand=True, fill="both", padx=10, pady=10)
 
-        # Competiciones/Equipos
+        # Competicion/Equipos
         self.equipos_frame = customtkinter.CTkFrame(self.tabview_competicion.tab("Equipos"), corner_radius=10)
         self.equipos_frame.pack(expand=True, fill="both")
         self.equipos_frame.grid_propagate(True)
         self.equipos_buscador_combobox = customtkinter.CTkComboBox(self.equipos_frame, border_width=0, command=self.seleccionar_equipos)
         self.equipos_buscador_combobox.pack(fill="both", padx=10, pady=10)
-        self.equipos_buscador_combobox.configure(values=["Equipo 1", "Equipo 2", "Equipo 3"])
 
         self.equipos_tabview = customtkinter.CTkTabview(self.equipos_frame)
         self.equipos_tabview.pack(expand=True, fill="both", padx=10, pady=(0,10))
         self.equipos_tabview.add("Estadísticas")
         self.equipos_tabview.add("Gráficos")
+        self.equipos_tabview.add("Partidos")
 
 
 
 
-        # Competiciones/Equipos/Estadísticas
+        # Competicion/Equipos/Estadísticas
         self.equipos_estadisticas_frame = customtkinter.CTkScrollableFrame(self.equipos_tabview.tab("Estadísticas"), corner_radius=10)
         self.equipos_estadisticas_frame.pack(expand=True, fill="both")
         self.equipos_estadisticas_text = customtkinter.CTkTextbox(self.equipos_estadisticas_frame, border_width=0)
@@ -250,7 +256,7 @@ class App(customtkinter.CTk):
         self.equipos_estadisticas_text.configure(state="disabled")
         self.equipos_estadisticas_text.pack(expand=True, fill="both", padx=10, pady=10)
 
-        # Competiciones/Equipos/Gráficos
+        # Competicion/Equipos/Gráficos
         self.equipos_graficos_frame = customtkinter.CTkScrollableFrame(self.equipos_tabview.tab("Gráficos"), corner_radius=10)
         self.equipos_graficos_frame.pack(expand=True, fill="both")
         # self.equipos_graficos_frame.grid_propagate(True)
@@ -259,15 +265,107 @@ class App(customtkinter.CTk):
         self.equipos_graficos_text.configure(state="disabled")
         self.equipos_graficos_text.pack(expand=True, fill="both", padx=10, pady=10)
 
-        # Competiciones/Equipos/Gráficos
+        # Competicion/Equipos/Partidos
+        self.equipos_partidos_frame = customtkinter.CTkFrame(self.equipos_tabview.tab("Partidos"), corner_radius=10)
+        self.equipos_partidos_frame.pack(expand=True, fill="both")
+        self.equipos_partidos_frame.grid_propagate(True)
+        self.equipos_partidos_frame.columnconfigure(0, weight=1)
+        self.equipos_partidos_frame.columnconfigure(1, weight=1)
+        # self.equipos_partidos_frame.grid_propagate(True)
+        # Ordenar por label
+        self.equipos_partidos_label_ordenar_por = customtkinter.CTkLabel(self.equipos_partidos_frame, text="Ordenar por:", font=customtkinter.CTkFont(size=20, weight="bold"))
+        self.equipos_partidos_label_ordenar_por.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+        # Combo box equipos_partidos
+        self.equipos_partidos_combobox = customtkinter.CTkComboBox(self.equipos_partidos_frame, border_width=0, command=self.ordenar_partidos_equipo, values=["Más goles por partido","Menos goles por partido","Mejor resultado", "Peor resultado", "Más goles a favor", "Menos goles a favor", "Más goles en contra", "Menos goles en contra"], state="readonly")
+        self.equipos_partidos_combobox.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
+
+        # Create treeview
+        self.equipos_partidos_treeview = ttk.Treeview(self.equipos_partidos_frame, columns = ('local', 'gl', 'gv', 'visitante'), show='headings', height=30)
+        self.equipos_partidos_treeview.grid(row=1, column=0, padx=(10,0), pady=10, columnspan=2, sticky="nsew")
+        # Configure columns
+        self.equipos_partidos_treeview.column("#0", width=0, stretch="no")
+        self.equipos_partidos_treeview.column("local", anchor="center", width=250)
+        self.equipos_partidos_treeview.column("gl", anchor="center", width=25)
+        self.equipos_partidos_treeview.column("gv", anchor="center", width=25)
+        self.equipos_partidos_treeview.column("visitante", anchor="center", width=250)
+        self.equipos_partidos_treeview.heading("local", text="Local", anchor="center")
+        self.equipos_partidos_treeview.heading("gl", text="GL", anchor="center")
+        self.equipos_partidos_treeview.heading("gv", text="GV", anchor="center")
+        self.equipos_partidos_treeview.heading("visitante", text="Visitante", anchor="center")
+
+        # Add scrollbar
+        self.equipos_partidos_treeview_scrollbar = customtkinter.CTkScrollbar(self.equipos_partidos_frame, command=self.equipos_partidos_treeview.yview, hover=True)
+        self.equipos_partidos_treeview_scrollbar.grid(row=1, column=2, padx=(2,10), pady=10, sticky="ns")
+        self.equipos_partidos_treeview.configure(yscrollcommand=self.equipos_partidos_treeview_scrollbar.set)
+
+
+
+
+
+        # Competicion/Partidos
+        self.partidos_frame = customtkinter.CTkFrame(self.tabview_competicion.tab("Partidos"), corner_radius=10)
+        self.partidos_frame.pack(expand=True, fill="both")
+        self.partidos_frame.columnconfigure(0, weight=1)
+        self.partidos_frame.columnconfigure(1, weight=1)
+        #Label Ordenar por:
+        self.partidos_label_ordenar_por = customtkinter.CTkLabel(self.partidos_frame, text="Ordenar por:", font=customtkinter.CTkFont(size=20, weight="bold"))
+        self.partidos_label_ordenar_por.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+
+        # Configure rows
+        # self.partidos_frame.rowconfigure(0, weight=1)
+        self.partidos_frame.rowconfigure(1, weight=1)
+        # self.partidos_frame.rowconfigure(2, weight=0)
+
+
+
+        # Create combo box
+        self.partidos_buscador_combobox = customtkinter.CTkComboBox(self.partidos_frame, border_width=0, command=self.ordenar_partidos)
+        self.partidos_buscador_combobox.grid(row=0, column=1, padx=10, pady=10, sticky = "ew")
+        # Add values to combobox
+        valores = list(ORDENAR_PARTIDOS_POR.keys())
+        self.partidos_buscador_combobox.configure(values=valores
+                                                     , state="readonly")
+        self.partidos_buscador_combobox.set("")
+        # Create treeview
+        self.partidos_treeview = ttk.Treeview(self.partidos_frame, columns = ('local', 'gl', 'gv', 'visitante'), show='headings', height=10)
+        self.partidos_treeview.grid(row=1, column=0, padx=(10,0), pady=10, columnspan=2, sticky="nsew")
+        # Configure columns
+        self.partidos_treeview.column("#0", width=0, stretch="no")
+        self.partidos_treeview.column("local", anchor="center", width=250)
+        self.partidos_treeview.column("gl", anchor="center", width=25)
+        self.partidos_treeview.column("gv", anchor="center", width=25)
+        self.partidos_treeview.column("visitante", anchor="center", width=250)
+        self.partidos_treeview.heading("local", text="Local", anchor="center")
+        self.partidos_treeview.heading("gl", text="GL", anchor="center")
+        self.partidos_treeview.heading("gv", text="GV", anchor="center")
+        self.partidos_treeview.heading("visitante", text="Visitante", anchor="center")
+
+        # Add scrollbar
+        self.partidos_treeview_scrollbar = customtkinter.CTkScrollbar(self.partidos_frame, command=self.partidos_treeview.yview, hover=True)
+        self.partidos_treeview_scrollbar.grid(row=1, column=2, padx=(2,10), pady=10, sticky="ns")
+        self.partidos_treeview.configure(yscrollcommand=self.partidos_treeview_scrollbar.set)
+
+
+
+
+
+
+
+
+
+        # Otras configuraciones
         self.cargar_estado()
-        self.after(0, lambda: self.state('zoomed')) # Bug en zoomed state, hay que hacerlo así
+        self.after(0, lambda: self.state('zoomed'))  # Bug en zoomed state, hay que hacerlo así
+
+
+
 
         # Bindings
         self.competiciones_lista.bind("<<ListboxSelect>>", self.on_competiciones_lista_selected)
         self.equipos_buscador_combobox.bind("<KeyRelease>", self.actualizar_filtro)
         self.clasificacion_treeview.bind("<Double-Button-1>", self.on_clasificacion_treeview_double_click)
         self.competicion_label.bind("<Button-1>", self.modificar_nombre_competicion)
+
 
     def actualizar_filtro(self, event):
         filtro = self.equipos_buscador_combobox.get().lower()
@@ -303,11 +401,6 @@ class App(customtkinter.CTk):
 
 
 
-
-
-    def sidebar_button_event(self):
-        print("Sidebar button pressed")
-
     def actualizar(self):
 
         hilo_actualizar = threading.Thread(target=self.actualizar_thread)
@@ -320,15 +413,45 @@ class App(customtkinter.CTk):
 
     def actualizar_thread(self):
         self.panel.actualizar_competicion(self.competicion_label.cget("text"))
-        print("Actualizando enlaces...")
         self.enlaces_label_ultima_actualizacion.configure(
             text=f"Última actualización:\n{self.panel.get_competicion(self.competicion_label.cget('text')).ultima_actualizacion}")
         self.abrir_competicion(self.competicion_label.cget("text"))
         self.loading_window.destroy()
 
+    def ventana_actualizar_panel(self):
+        #Show pop up window for confirmation
+        if self.panel is None:
+            return
+        confirmation_window = customtkinter.CTkToplevel(self)
+        confirmation_window.title("Confirmación")
+        confirmation_window.geometry("300x150")
+        confirmation_window.resizable(False, False)
+        confirmation_window.attributes("-topmost", True)
+        confirmation_window.grab_set()
+        confirmation_window.focus_set()
+        confirmation_window.transient(self)
+        # Create label
+        label = customtkinter.CTkLabel(confirmation_window, text="La actualización puede tardar unos minutos\n¿Estás seguro?")
+        label.pack(padx=20, pady=20)
+        # Create buttons
+        buttons_frame = customtkinter.CTkFrame(confirmation_window)
+        buttons_frame.pack(padx=20, pady=20)
+        btn_si = customtkinter.CTkButton(buttons_frame, text="Sí", command=lambda : self.actualizar_panel(confirmation_window), width=100)
+        btn_si.pack(padx=10, side="left")
+        btn_no = customtkinter.CTkButton(buttons_frame, text="No", command=lambda : confirmation_window.destroy(), width=100)
+        btn_no.pack(padx=10, side="right")
 
+    def actualizar_panel(self, confirmation_window):
+        confirmation_window.destroy()
+        hilo_actualizar = threading.Thread(target=self.actualizar_panel_thread)
+        hilo_actualizar.start()
+        self.loading_screen()
+        self.loading_window.update()
 
-
+    def actualizar_panel_thread(self):
+        self.panel.actualizar_competiciones()
+        self.loading_window.destroy()
+        self.actualizar_competicion_listview()
 
     def loading_screen(self):
         # Create tokLevelWindow
@@ -374,6 +497,14 @@ class App(customtkinter.CTk):
         else:
             self.btn_exportar_competiciones.configure(state="normal")
             self.btn_exportar_partidos.configure(state="normal")
+        #check enlaces length
+        if nombre_competicion is not None:
+            if len(self.panel.get_competicion(nombre_competicion).enlaces) == 0:
+                self.btn_enlaces_actualizar.configure(state="disabled")
+            else:
+                self.btn_enlaces_actualizar.configure(state="normal")
+        else:
+            self.btn_enlaces_actualizar.configure(state="disabled")
 
         # Clear frame
         for widget in self.equipos_estadisticas_frame.winfo_children():
@@ -397,6 +528,10 @@ class App(customtkinter.CTk):
             self.tabview_competicion.set("General")
             self.general_tabview.set("Estadísticas")
             self.general_tabview.configure(state="disabled")
+            # Put "" on combobox
+            self.partidos_buscador_combobox.set("")
+            self.equipos_buscador_combobox.set("")
+            self.equipos_partidos_combobox.set("")
             return
 
         if self.competicion_label.cget("text") == "Competición #":
@@ -410,7 +545,7 @@ class App(customtkinter.CTk):
         for enlace in enlaces:
             self.enlaces_lista.insert("end", enlace)
 
-        self.btn_enlaces_actualizar.configure(state="normal")
+
         self.btn_enlaces_annadir.configure(state="normal")
         self.enlaces_label_ultima_actualizacion.configure(text=f"Última actualización:\n{self.panel.get_competicion(nombre_competicion).ultima_actualizacion}")
 
@@ -419,8 +554,8 @@ class App(customtkinter.CTk):
 
         # Tab General - Clasificación
         # set height
-        tamanno = len(self.panel.get_competicion(nombre_competicion).get_equipos()) if self.panel is not None else 2
-        self.clasificacion_treeview.configure(height=tamanno)
+        # tamanno = len(self.panel.get_competicion(nombre_competicion).get_equipos()) if self.panel is not None else 2
+        # self.clasificacion_treeview.configure(height=tamanno)
         clasificacion_df = self.panel.get_competicion(nombre_competicion).get_clasificacion()
         self.clasificacion_treeview.delete(*self.clasificacion_treeview.get_children())
         for index, row in clasificacion_df.iterrows():
@@ -510,7 +645,6 @@ class App(customtkinter.CTk):
 
         plt.tight_layout()
 
-        print(estadisticas["goles_por_partido"])
         fig_histograma, ax = self.crear_histograma(datos=estadisticas["goles_por_partido"], titulo="Histograma de goles por partido de " + nombre_competicion, ylabel="Frecuencia", xlabel="Goles", dark=True)
 
 
@@ -522,6 +656,28 @@ class App(customtkinter.CTk):
         violinplot_competicion = FigureCanvasTkAgg(fig_violinplot, master=self.graficos_frame)
         violinplot_competicion.draw()
         violinplot_competicion.get_tk_widget().pack(expand=True, fill="both", padx=10, pady=10)
+
+        # Tab Partidos
+
+        #
+        self.partidos_buscador_combobox.set("")
+        partidos_df = self.panel.get_competicion(nombre_competicion).partidos_to_df()
+        partidos_df["dif"] = abs(partidos_df["gl"] - partidos_df["gv"])
+        partidos_df = partidos_df.sort_values(by=["dif"], ascending=False)
+
+
+
+        # Insert partidos
+        self.partidos_treeview.delete(*self.partidos_treeview.get_children())
+        for index, row in partidos_df.iterrows():
+            self.partidos_treeview.insert(parent="", index="end", iid=index, text="", values=(
+            row["local"], row["gl"], row["gv"], row["visitante"]))
+
+        # Tab Equipos
+        self.equipos_buscador_combobox.set("")
+        self.equipos_partidos_combobox.set("")
+        self.equipos_partidos_treeview.delete(*self.equipos_partidos_treeview.get_children())
+
 
 
 
@@ -554,11 +710,12 @@ class App(customtkinter.CTk):
     def get_competicion(self, nombre):
         return self.panel.get_competicion(nombre)
     def annadir_competicion_event(self):
-        print("Añadir competición")
         self.panel.add_competicion(gestor.Competicion(nombre=self.annadir_competicion_entry.get(), actualizar_al_iniciar=False, nombre_bd=self.panel.archivo_bd))
-        self.annadir_competicion_window.destroy()
         self.actualizar_competicion_listview()
         self.abrir_competicion(self.annadir_competicion_entry.get())
+        self.annadir_competicion_window.destroy()
+        self.competiciones_lista.select(-1)
+
         pass
 
     def borrar_competicion(self):
@@ -629,11 +786,10 @@ class App(customtkinter.CTk):
 
 
     def seleccionar_equipos(self, nombre_equipo):
-        print("Seleccionando equipo: " + nombre_equipo)
         competicion = self.get_competicion(self.competicion_label.cget("text"))
         equipo = competicion.get_equipo(nombre_equipo)
         estadisticas = competicion.get_estadisticas_equipo(equipo)
-        print(estadisticas["mejor_victoria"])
+
 
         # Clear frame
         for widget in self.equipos_estadisticas_frame.winfo_children():
@@ -763,6 +919,20 @@ class App(customtkinter.CTk):
         scatterplot_equipo.draw()
         scatterplot_equipo.get_tk_widget().pack(expand=True, fill="both", padx=10, pady=10)
 
+        # Partidos
+        self.equipos_partidos_combobox.set("")
+        partidos_df = competicion.get_partidos_equipo_df(equipo)
+        partidos_df["dif"] = abs(partidos_df["gl"] - partidos_df["gv"])
+        partidos_df = partidos_df.sort_values(by=["dif"], ascending=False)
+
+        # Insert partidos
+        self.equipos_partidos_treeview.delete(*self.equipos_partidos_treeview.get_children())
+
+        for index, row in partidos_df.iterrows():
+            self.equipos_partidos_treeview.insert(parent="", index="end", iid=index, text="", values=(
+            row["local"], row["gl"], row["gv"], row["visitante"]))
+
+
         # Al finalizar
         # Actualizar combobox con todos los equipos
         nombres_equipos = []
@@ -772,14 +942,18 @@ class App(customtkinter.CTk):
 
 
     def crear_violinplot(self, ax = None, datos = None, labels = None, titulo = None, ylabel = None, xlabel = None, dark = True):
-        if len(datos) != len(labels):
-            raise Exception("El número de datos y etiquetas no coincide")
-        if len(datos) != 2:
-            raise Exception("El número de grupos de datos debe ser 2")
-        if len(datos[0]) != len(datos[1]):
-            raise Exception("El número de datos de cada grupo debe ser el mismo")
-        if len(datos[0]) == 0:
-            raise Exception("Los datos no pueden estar vacíos")
+        try:
+            if len(datos) != len(labels):
+                raise Exception("El número de datos y etiquetas no coincide")
+            if len(datos) != 2:
+                raise Exception("El número de grupos de datos debe ser 2")
+            if len(datos[0]) != len(datos[1]):
+                raise Exception("El número de datos de cada grupo debe ser el mismo")
+            if len(datos[0]) == 0:
+                raise Exception("Los datos no pueden estar vacíos")
+        except Exception as e:
+            print(e)
+            return None, None
 
         color_fondo = "#2a2d2e" if dark else "white"
         color_texto = "white" if dark else "black"
@@ -856,6 +1030,12 @@ class App(customtkinter.CTk):
         return fig, ax
 
     def crear_histograma(self, ax = None, datos = None, titulo = None, ylabel = None, xlabel = None, dark = True):
+        try:
+            if len(datos) == 0:
+                raise Exception("Los datos no pueden estar vacíos")
+        except Exception as e:
+            print(e)
+            return None, None
         color_fondo = "#2a2d2e" if dark else "white"
         color_texto = "white" if dark else "black"
         color_puntos = "white" if dark else "black"
@@ -864,12 +1044,23 @@ class App(customtkinter.CTk):
         else:
             fig = None
 
-        ax.hist(datos, bins=16, color="C0", edgecolor="white")
+        bins = np.arange(min(datos), max(datos) + 1.5) - 0.5
+        ax.hist(datos, bins = bins,color="C0", edgecolor="white")
         ax.spines["bottom"].set_color(color_texto)
         ax.spines["left"].set_color(color_texto)
         ax.spines["top"].set_color(color_texto)
         ax.spines["right"].set_color(color_texto)
         ax.tick_params(axis='x', colors=color_texto, labelsize=14)
+        # Set the ticks to be every 3 bins
+        if len(bins) > 60:
+            ax.xaxis.set_major_locator(ticker.MultipleLocator(3))
+        elif len(bins) > 30:
+            ax.xaxis.set_major_locator(ticker.MultipleLocator(2))
+        else:
+            ax.xaxis.set_major_locator(ticker.MultipleLocator(1))
+
+
+
         ax.tick_params(axis='y', colors=color_texto, labelsize=14)
         ax.set_facecolor(color_fondo)
         ax.set_title(titulo, color=color_texto, fontdict={"fontsize": 20})
@@ -963,7 +1154,7 @@ class App(customtkinter.CTk):
         self.modificar_enlace_window.destroy()
 
     def modificar_nombre_competicion(self, event):
-        print("Modificar nombre competición")
+
         if self.competicion_label.cget("text") == "Competición #":
             return
         # Create tokLevelWindow
@@ -993,12 +1184,87 @@ class App(customtkinter.CTk):
     def modificar_nombre_competicion_event(self):
         nombre = self.modificar_nombre_competicion_entry.get()
         self.panel.modificar_nombre_competicion(self.competicion_label.cget("text"), nombre)
-        self.abrir_competicion(nombre)
         self.modificar_nombre_competicion_window.destroy()
         self.actualizar_competicion_listview()
+        self.abrir_competicion(nombre)
+
+    def ordenar_partidos(self, event):
+
+        if self.competicion_label.cget("text") == "Competición #":
+            return
+        partidos_df = self.panel.get_competicion(self.competicion_label.cget("text")).partidos_to_df()
+        partidos_df["dif"] = abs(partidos_df["gl"] - partidos_df["gv"])
+        partidos_df["tot"] = partidos_df["gl"] + partidos_df["gv"]
+        partidos_df["goles_ganadores"] = partidos_df.apply(lambda row: row["gl"] if row["gl"] > row["gv"] else row["gv"], axis=1)
+        partidos_df["goles_perdedores"] = partidos_df.apply(lambda row: row["gl"] if row["gl"] < row["gv"] else row["gv"], axis=1)
+
+
+        match self.partidos_buscador_combobox.get():
+            case "Mayor diferencia":
+                partidos_df = partidos_df.sort_values(by=["dif"], ascending=False)
+            case "Menor diferencia":
+                partidos_df = partidos_df.sort_values(by=["dif"], ascending=True)
+            case "Más goles por partido":
+                partidos_df = partidos_df.sort_values(by=["tot"], ascending=False)
+            case "Menos goles por partido":
+                partidos_df = partidos_df.sort_values(by=["tot"], ascending=True)
+            case "Más goles ganadores":
+                partidos_df = partidos_df.sort_values(by=["goles_ganadores"], ascending=False)
+            case "Menos goles ganadores":
+                partidos_df = partidos_df.sort_values(by=["goles_ganadores"], ascending=True)
+            case "Más goles perdedores":
+                partidos_df = partidos_df.sort_values(by=["goles_perdedores"], ascending=False)
+            case "Menos goles perdedores":
+                partidos_df = partidos_df.sort_values(by=["goles_perdedores"], ascending=True)
+            case _:
+                print("Error")
+
+        # Insert partidos
+        self.partidos_treeview.delete(*self.partidos_treeview.get_children())
+        for index, row in partidos_df.iterrows():
+            self.partidos_treeview.insert(parent="", index="end", iid=index, text="", values=(
+            row["local"], row["gl"], row["gv"], row["visitante"]))
 
 
 
+    def ordenar_partidos_equipo(self, event):
+
+        if self.competicion_label.cget("text") == "Competición #":
+            return
+        competicion = self.panel.get_competicion(self.competicion_label.cget("text"))
+        equipo = competicion.get_equipo(self.equipos_buscador_combobox.get())
+        partidos_df = competicion.get_partidos_equipo_df(equipo)
+        partidos_df["dif"] = abs(partidos_df["gl"] - partidos_df["gv"])
+        partidos_df["tot"] = partidos_df["gl"] + partidos_df["gv"]
+        partidos_df["goles_equipo"] = partidos_df.apply(lambda row: row["gl"] if row["local"] == equipo.nombre else row["gv"], axis=1)
+        partidos_df["goles_rival"] = partidos_df.apply(lambda row: row["gl"] if row["local"] != equipo.nombre else row["gv"], axis=1)
+        partidos_df["dif_neta"] = partidos_df.apply(lambda row: row["goles_equipo"] - row["goles_rival"], axis=1)
+
+        match self.equipos_partidos_combobox.get():
+            case "Más goles por partido":
+                partidos_df = partidos_df.sort_values(by=["tot"], ascending=False)
+            case "Menos goles por partido":
+                partidos_df = partidos_df.sort_values(by=["tot"], ascending=True)
+            case "Mejor resultado":
+                partidos_df = partidos_df.sort_values(by=["dif_neta"], ascending=False)
+            case "Peor resultado":
+                partidos_df = partidos_df.sort_values(by=["dif_neta"], ascending=True)
+            case "Más goles a favor":
+                partidos_df = partidos_df.sort_values(by=["goles_equipo"], ascending=False)
+            case "Menos goles a favor":
+                partidos_df = partidos_df.sort_values(by=["goles_equipo"], ascending=True)
+            case "Más goles en contra":
+                partidos_df = partidos_df.sort_values(by=["goles_rival"], ascending=False)
+            case "Menos goles en contra":
+                partidos_df = partidos_df.sort_values(by=["goles_rival"], ascending=True)
+            case _:
+                print("Error")
+
+        # Insert partidos
+        self.equipos_partidos_treeview.delete(*self.equipos_partidos_treeview.get_children())
+        for index, row in partidos_df.iterrows():
+            self.equipos_partidos_treeview.insert(parent="", index="end", iid=index, text="", values=(
+            row["local"], row["gl"], row["gv"], row["visitante"]))
 
 
 

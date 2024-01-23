@@ -13,7 +13,19 @@ from SH_Stats_back import creacion_df, conexion
 
 
 class Competicion:
+    """
+    Clase que representa una competición
+    """
     def __init__(self, lista_urls = [], nombre_bd=None,nombre =None,  competicion_id=None, actualizar_al_iniciar = True, ultima_actualizacion=None):
+        """
+        Constructor de la clase Competicion
+        :param lista_urls: listado de strings con las urls de las páginas de resultados de la competición
+        :param nombre_bd: nombre del archivo de la base de datos
+        :param nombre: nombre de la competición
+        :param competicion_id: id de la competición
+        :param actualizar_al_iniciar: booleano que indica si se debe actualizar la base de datos al iniciar
+        :param ultima_actualizacion: fecha de la última actualización de la base de datos
+        """
         if isinstance(lista_urls, str):
             lista_urls = [lista_urls]
         self.enlaces = lista_urls
@@ -33,9 +45,18 @@ class Competicion:
         return f"Competicion: {self.nombre} - Archivo: {self.nombre_archivo_bd} - Ultima actualizacion: {self.ultima_actualizacion} - Enlaces: {self.enlaces})"
 
     def add_enlace(self, enlace):
+        """
+        Añade un enlace a la lista de enlaces de la competición
+        :param enlace: enlace a añadir
+        :return:
+        """
         self.enlaces.append(enlace)
 
     def get_nombre(self):
+        """
+        Devuelve el nombre de la competición
+        :return: nombre de la competición
+        """
         conn = sqlite3.connect(self.nombre_archivo_bd)
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
@@ -46,14 +67,27 @@ class Competicion:
 
 
     def url_to_JSON(self):
+        """
+        Devuelve un JSON con los enlaces de la competición
+        :return: json con los enlaces de la competición
+        """
         return json.dumps(self.enlaces)
 
 
 
     def remove_enlace(self, enlace):
+        """
+        Elimina un enlace de la lista de enlaces de la competición
+        :param enlace: enlace a eliminar
+        :return:
+        """
         self.enlaces.remove(enlace)
 
     def to_dict(self):
+        """
+        Devuelve un diccionario con los atributos de la competición
+        :return: diccionario con los atributos de la competición
+        """
         return {
             "nombre_competicion": self.nombre,
             "nombre_archivo_bd": self.nombre_archivo_bd,
@@ -61,20 +95,46 @@ class Competicion:
             "lista_urls": self.enlaces
         }
     def to_json(self):
+        """
+        Devuelve un JSON con los atributos de la competición
+        :return: json con los atributos de la competición
+        """
         return json.dumps(self.to_dict())
-    def crear_equipos(self, df_partidos):
-        equipos = []
+    def crear_equipos(self, df_partidos, equipos_existentes = []):
+        """
+        Crea una lista de diccionarios con los equipos de la competición
+        :param df_partidos: DataFrame con los partidos de la competición
+        :param equipos_existentes: Lista de diccionarios con los equipos existentes
+        :return: lista de diccionarios con los equipos de la competición
+        """
+        def check_in( equipo, lista):
+            """
+            Comprueba si un equipo está en una lista de equipos. Se considera que un equipo está en la lista si tiene el mismo nombre y temporada
+            :param equipo: Equipo a comprobar
+            :param lista: Lista de diccionarios con los equipos
+            :return: booleano que indica si el equipo está en la lista
+            """
+            for e in lista:
+                if e["nombre"] == equipo["nombre"] and e["temporada"] == equipo["temporada"]:
+                   return True
+            return False
+        equipos = equipos_existentes
         for index, row in df_partidos.iterrows():
             local = {"nombre": row['local'], "liga": row['liga'], "grupo": row['grupo'], "temporada": row['temporada']}
             visitante = {"nombre": row['visitante'], "liga": row['liga'], "grupo": row['grupo'], "temporada": row['temporada']}
-            if local not in equipos:
+            if not check_in(local, equipos):
                 equipos.append(local)
-            if visitante not in equipos:
+            if not check_in(visitante, equipos):
                 equipos.append(visitante)
+
         return equipos
 
 
     def crear_bd(self):
+        """
+        Crea la base de datos si no existe. Si existe, no hace nada
+        :return:
+        """
         if not os.path.exists(self.nombre_archivo_bd):
             # Create an empty .db file
             open(self.nombre_archivo_bd, 'w').close()
@@ -85,6 +145,10 @@ class Competicion:
 
 
     def actualizar_bd(self):
+        """
+        Actualiza la base de datos con los enlaces de la competición.
+        :return:
+        """
         if self.nombre_archivo_bd is None:
             raise Exception("No se ha especificado el nombre del archivo de la base de datos")
         if self.enlaces is None:
@@ -103,18 +167,26 @@ class Competicion:
         conn.commit()
         conn.close()
 
-
+        equipos_existentes_dict = []
+        listado_df_partidos = []
         for url in self.enlaces:
             mi_soup = conexion.get_soup(url)
-            df_partidos = creacion_df.get_df_partidos(mi_soup)
-            equipos = self.crear_equipos(df_partidos)
-            self.crear_tabla_equipos(equipos)
-            self.crear_tabla_partidos(df_partidos)
+            listado_df_partidos.append(creacion_df.get_df_partidos(mi_soup))
+            equipos_existentes_dict = self.crear_equipos(listado_df_partidos[-1], equipos_existentes_dict)
+
+        self.crear_tabla_equipos(equipos_existentes_dict)
+        df_partidos = pd.concat(listado_df_partidos)
+        self.crear_tabla_partidos(df_partidos)
         self.set_ultima_actualizacion(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
         print("Base de datos actualizada")
 
     def set_ultima_actualizacion(self, ultima_actualizacion):
+        """
+        Actualiza la fecha de la última actualización de la competición
+        :param ultima_actualizacion: fecha de la última actualización
+        :return:
+        """
         conn = sqlite3.connect(self.nombre_archivo_bd)
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
@@ -124,10 +196,15 @@ class Competicion:
         self.ultima_actualizacion = ultima_actualizacion
 
     def crear_tabla_equipos(self, equipos):
+        """
+        Crea la tabla de equipos en la base de datos si no existe. Si existe, inserta los equipos en la tabla
+        :param equipos: lista de diccionarios con los equipos a insertar
+        :return:
+        """
 
         conn = sqlite3.connect(self.nombre_archivo_bd)
         cursor = conn.cursor()
-        conn.execute('PRAGMA foreign_keys = ON;')
+        conn.execute('PRAGMA foreign_keys = ON;') # Necesario para que funcionen las claves foráneas
 
         # Crear tabla de Equipos
         cursor.execute('''
@@ -141,7 +218,7 @@ class Competicion:
                         FOREIGN KEY (competicion_id) REFERENCES Competiciones(competicion_id) ON DELETE CASCADE
                     )
                 ''')
-        # equipo = {"nombre_equipo": "Real Madrid", "liga": "Liga Santander", "grupo": "A", "temporada": "2020-2021"}
+
         for equipo in equipos:
             cursor.execute('''INSERT INTO Equipos (nombre_equipo, liga, grupo, temporada, competicion_id) VALUES (?,?,?,?,?)''',
                            (equipo["nombre"], equipo["liga"], equipo["grupo"], equipo["temporada"], self.competicion_id))
@@ -151,6 +228,11 @@ class Competicion:
 
 
     def crear_tabla_partidos(self, df_partidos):
+        """
+        Crea la tabla de partidos en la base de datos si no existe. Si existe, inserta los partidos en la tabla
+        :param df_partidos: DataFrame con los partidos a insertar
+        :return:
+        """
 
         conn = sqlite3.connect(self.nombre_archivo_bd)
         cursor = conn.cursor()
@@ -190,6 +272,11 @@ class Competicion:
 
 
     def get_id_equipo(self, nombre_equipo):
+        """
+        Devuelve el id de un equipo a partir de su nombre
+        :param nombre_equipo: nombre del equipo
+        :return: id del equipo
+        """
         conn = sqlite3.connect(self.nombre_archivo_bd)
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
@@ -199,6 +286,10 @@ class Competicion:
         return equipo_id
 
     def get_equipos(self):
+        """
+        Devuelve una lista de objetos de tipo Equipo con los equipos de la competición
+        :return: lista de objetos de tipo Equipo con los equipos de la competición
+        """
         conn = sqlite3.connect(self.nombre_archivo_bd)
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
@@ -211,6 +302,10 @@ class Competicion:
         return lista_obj_equipos
 
     def get_partidos(self):
+        """
+        Devuelve una lista de objetos de tipo Partido con los partidos de la competición
+        :return: lista de objetos de tipo Partido con los partidos de la competición
+        """
         conn = sqlite3.connect(self.nombre_archivo_bd)
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
@@ -234,6 +329,10 @@ class Competicion:
         return listado_obj_partidos
 
     def partidos_to_df(self):
+        """
+        Devuelve un DataFrame con los partidos de la competición
+        :return: DataFrame con los partidos de la competición
+        """
         partidos = self.get_partidos()
         listado_partidos = []
         for partido in partidos:
@@ -244,6 +343,11 @@ class Competicion:
 
 
     def get_partidos_equipo(self, nombre_equipo):
+        """
+        Devuelve una lista de objetos de tipo Partido con los partidos de un equipo
+        :param nombre_equipo: nombre del equipo
+        :return: lista de objetos de tipo Partido con los partidos del equipo especificado
+        """
         if isinstance(nombre_equipo, Equipo):
             nombre_equipo = nombre_equipo.nombre
         conn = sqlite3.connect(self.nombre_archivo_bd)
@@ -265,7 +369,25 @@ class Competicion:
             listado_obj_partidos.append(Partido(partido[1], partido[2], partido[3], partido[4], partido[5], partido[6], partido[7], partido[8]))
         return listado_obj_partidos
 
+    def get_partidos_equipo_df(self, nombre_equipo):
+        """
+        Devuelve un DataFrame con los partidos de un equipo
+        :param nombre_equipo: nombre del equipo
+        :return: DataFrame con los partidos del equipo especificado
+        """
+        partidos = self.get_partidos_equipo(nombre_equipo)
+        listado_partidos = []
+        for partido in partidos:
+            listado_partidos.append([partido.local, partido.visitante, partido.gl, partido.gv, partido.federacion, partido.liga, partido.grupo, partido.fecha, self.nombre])
+        df = pd.DataFrame(listado_partidos, columns=['local', 'visitante', 'gl', 'gv', 'federacion', 'liga', 'grupo', 'fecha', 'competicion'])
+        return df
+
     def get_equipo(self, nombre_equipo):
+        """
+        Devuelve un objeto de tipo Equipo con los datos de un equipo
+        :param nombre_equipo: nombre del equipo
+        :return: objeto de tipo Equipo con los datos del equipo especificado
+        """
         conn = sqlite3.connect(self.nombre_archivo_bd)
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
@@ -276,6 +398,10 @@ class Competicion:
         return equipo
 
     def get_clasificacion(self):
+        """
+        Devuelve un DataFrame con la clasificación de la competición
+        :return: DataFrame con la clasificación de la competición
+        """
         equipos = self.get_equipos()
         listado_equipos = []
         for equipo in equipos:
@@ -318,6 +444,11 @@ class Competicion:
         return df
 
     def get_datos_equipo_local(self, equipo):
+        """
+        Devuelve un diccionario con el número de victorias, derrotas y empates de un equipo como local
+        :param equipo: objeto de tipo Equipo
+        :return: diccionario con el número de victorias, derrotas y empates de un equipo como local
+        """
         partidos = self.get_partidos_equipo(equipo)
         victorias = 0
         derrotas = 0
@@ -333,6 +464,11 @@ class Competicion:
         return {"victorias": victorias, "derrotas": derrotas, "empates": empates}
 
     def get_datos_equipo_visitante(self, equipo):
+        """
+        Devuelve un diccionario con el número de victorias, derrotas y empates de un equipo como visitante
+        :param equipo: objeto de tipo Equipo
+        :return: diccionario con el número de victorias, derrotas y empates de un equipo como visitante
+        """
         partidos = self.get_partidos_equipo(equipo)
         victorias = 0
         derrotas = 0
@@ -348,14 +484,45 @@ class Competicion:
         return {"victorias": victorias, "derrotas": derrotas, "empates": empates}
 
     def get_estadisticas_equipo(self, equipo):
+        """
+        Devuelve un diccionario con las estadísticas de un equipo. Las estadísticas son:
+        - Media de goles a favor
+        - Media de goles en contra
+        - Desviación estándar de goles a favor
+        - Desviación estándar de goles en contra
+        - Número de victorias como local
+        - Número de derrotas como local
+        - Número de empates como local
+        - Número de victorias como visitante
+        - Número de derrotas como visitante
+        - Número de empates como visitante
+        - Número de victorias
+        - Número de derrotas
+        - Número de empates
+        - Mayor racha de victorias
+        - Mayor racha de derrotas
+        - Mayor racha de empates
+        - Últimos 5 partidos
+        - Número de goles en las victorias
+        - Número de goles en las derrotas
+        - Mejor victoria
+        - Peor derrota
+        - Mejor diferencia de goles
+        - Peor diferencia de goles
+
+        :param equipo: objeto de tipo Equipo del que se quieren obtener las estadísticas
+        :return: diccionario con las estadísticas del equipo
+        """
 
         #Datos como locales y visitantes
-        victorias_locales = self.get_datos_equipo_local(equipo)["victorias"]
-        derrotas_locales = self.get_datos_equipo_local(equipo)["derrotas"]
-        empates_locales = self.get_datos_equipo_local(equipo)["empates"]
-        victorias_visitantes = self.get_datos_equipo_visitante(equipo)["victorias"]
-        derrotas_visitantes = self.get_datos_equipo_visitante(equipo)["derrotas"]
-        empates_visitantes = self.get_datos_equipo_visitante(equipo)["empates"]
+        dict_datos_locales = self.get_datos_equipo_local(equipo)
+        victorias_locales = dict_datos_locales["victorias"]
+        derrotas_locales = dict_datos_locales["derrotas"]
+        empates_locales = dict_datos_locales["empates"]
+        dict_datos_visitantes = self.get_datos_equipo_visitante(equipo)
+        victorias_visitantes = dict_datos_visitantes["victorias"]
+        derrotas_visitantes = dict_datos_visitantes["derrotas"]
+        empates_visitantes = dict_datos_visitantes["empates"]
 
         # Creamos las listas de goles, victorias, derrotas y empates
         partidos = self.get_partidos_equipo(equipo)
@@ -533,6 +700,25 @@ class Competicion:
                 "avg_gf_ultimos_5": avg_gf_ultimos_5, "avg_gc_ultimos_5": avg_gc_ultimos_5, "std_gf_ultimos_5": std_gf_ultimos_5, "std_gc_ultimos_5": std_gc_ultimos_5}
 
     def get_estadisticas_competicion(self):
+        """
+        Devuelve un diccionario con las estadísticas de la competición. Las estadísticas son:
+        - Número de equipos
+        - Número de partidos
+        - Número de victorias locales
+        - Número de victorias visitantes
+        - Número de empates
+        - Media de goles por partido
+        - Desviación estándar de goles por partido
+        - Media de goles de los ganadores
+        - Desviación estándar de goles de los ganadores
+        - Media de goles de los perdedores
+        - Desviación estándar de goles de los perdedores
+        - Lista con los goles por partido
+        - Lista con los goles de los ganadores
+        - Lista con los goles de los perdedores
+
+        :return: diccionario con las estadísticas de la competición
+        """
         equipos = self.get_equipos()
         partidos = self.get_partidos()
 
@@ -572,7 +758,17 @@ class Competicion:
 
 
 class Equipo:
+    """
+    Clase que representa a un equipo
+    """
     def __init__(self, nombre, liga, grupo, temporada):
+        """
+        Constructor de la clase Equipo
+        :param nombre: nombre del equipo
+        :param liga: liga del equipo
+        :param grupo: grupo del equipo
+        :param temporada:
+        """
         self.nombre = nombre
         self.liga = liga
         self.grupo = grupo
@@ -584,8 +780,23 @@ class Equipo:
     def __repr__(self):
         return f"Equipo: {self.nombre} - Liga: {self.liga} - Grupo: {self.grupo} - Temporada: {self.temporada}"
 
+
 class Partido:
+    """
+    Clase que representa a un partido
+    """
     def __init__(self, local = None, visitante = None, gl = 0, gv=  0, federacion = None, liga = None, grupo = None, fecha = None):
+        """
+        Constructor de la clase Partido
+        :param local:
+        :param visitante:
+        :param gl: Goles local
+        :param gv: Goles visitante
+        :param federacion:
+        :param liga:
+        :param grupo:
+        :param fecha:
+        """
         self.local = local
         self.visitante = visitante
         self.gl = gl
@@ -602,12 +813,26 @@ class Partido:
 
 
 class Panel:
+    """
+    Clase que representa al panel de competiciones. Un panel de competiciones es un objeto que contiene una lista de
+    competiciones y que permite añadir, eliminar y modificar competiciones.
+    """
     def __init__(self, archivo_bd = None, lista_competiciones = []):
+        """
+        Constructor de la clase Panel
+        :param archivo_bd: Archivo de la base de datos
+        :param lista_competiciones: Lista de competiciones
+        """
         self.lista_competiciones = lista_competiciones
         self.archivo_bd = archivo_bd
         self.crear_tabla_panel()
 
     def add_competicion(self, competicion):
+        """
+        Añade una competición al panel
+        :param competicion: objeto de tipo Competicion
+        :return:
+        """
 
         if isinstance(competicion, Competicion):
             conn = sqlite3.connect(self.archivo_bd)
@@ -622,6 +847,10 @@ class Panel:
             raise Exception("Se ha intentado añadir al panel una competición que no es de tipo Competicion")
 
     def crear_tabla_panel(self):
+        """
+        Crea la tabla de competiciones en la base de datos si no existe
+        :return:
+        """
         if not os.path.exists(self.archivo_bd):
             # Create an empty .db file
             open(self.archivo_bd, 'w').close()
@@ -644,6 +873,10 @@ class Panel:
 
 
     def actualizar_tabla_panel(self):
+        """
+        Actualiza la tabla de competiciones en la base de datos. Borra todas las competiciones y las vuelve a añadir
+        :return:
+        """
         conn = sqlite3.connect(self.archivo_bd)
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = OFF;') # Desactivar las foreign keys para poder actualizar las competiciones
@@ -656,6 +889,11 @@ class Panel:
         conn.close()
 
     def get_id_competicion(self, nombre_competicion):
+        """
+        Devuelve el id de una competición a partir de su nombre
+        :param nombre_competicion: nombre de la competición
+        :return: id de la competición
+        """
         conn = sqlite3.connect(self.archivo_bd)
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
@@ -665,6 +903,11 @@ class Panel:
         return competicion_id
 
     def get_competicion(self, nombre_competicion):
+        """
+        Devuelve un objeto de tipo Competicion a partir de su nombre
+        :param nombre_competicion: nombre de la competición
+        :return: objeto de tipo Competicion
+        """
         self.lista_competiciones = self.get_competiciones()
         for competicion in self.lista_competiciones:
             if competicion.nombre == nombre_competicion:
@@ -672,6 +915,19 @@ class Panel:
         return None
 
     def annadir_enlace_a_competicion(self, nombre_competicion, enlace):
+        """
+        Añade un enlace a una competición. Preprocesa el enlace para que sea válido. El enlace debe contener los parámetros "seleccion" e "id"
+        :param nombre_competicion: nombre de la competición
+        :param enlace: enlace a añadir
+        :return:
+        """
+
+        # Preprocesar el enlace
+        seleccion = enlace.split("seleccion=")[1].split("&")[0]
+        id = enlace.split("id=")[1].split("&")[0]
+        nuevo_enlace = f"https://www.rfebm.com/competiciones/resultados_completos.php?seleccion={seleccion}&id={id}"
+
+
         conn = sqlite3.connect(self.archivo_bd)
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
@@ -679,19 +935,31 @@ class Panel:
         cursor.execute('''SELECT lista_urls FROM Competiciones WHERE competicion_id=?''', (competicion_id,))
         lista_urls = cursor.fetchone()[0]
         lista_urls = json.loads(lista_urls)
-        lista_urls.append(enlace)
+        lista_urls.append(nuevo_enlace)
         cursor.execute('''UPDATE Competiciones SET lista_urls=? WHERE competicion_id=?''', (json.dumps(lista_urls), competicion_id))
         conn.commit()
         conn.close()
         
 
     def set_enlaces_a_competicion(self, nombre_competicion, lista_enlaces):
+        """
+        Modifica los enlaces de una competición
+        :param nombre_competicion: nombre de la competición
+        :param lista_enlaces: lista de enlaces a añadir
+        :return:
+        """
         competicion = self.get_competicion(nombre_competicion)
         competicion.enlaces = lista_enlaces
         self.actualizar_competicion(competicion)
         self.actualizar_tabla_panel()
 
     def eliminar_enlace_a_competicion(self, nombre_competicion, enlace):
+        """
+        Elimina un enlace de una competición
+        :param nombre_competicion: nombre de la competición
+        :param enlace: enlace a eliminar
+        :return:
+        """
         conn = sqlite3.connect(self.archivo_bd)
         cursor = conn.cursor()
         competicion_id = self.get_id_competicion(nombre_competicion)
@@ -706,12 +974,23 @@ class Panel:
 
 
     def eliminar_enlaces_a_competicion(self, nombre_competicion):
+        """
+        Elimina todos los enlaces de una competición
+        :param nombre_competicion: nombre de la competición
+        :return:
+        """
         competicion = self.get_competicion(nombre_competicion)
         competicion.enlaces = []
         self.actualizar_competicion(competicion)
         self.actualizar_tabla_panel()
 
     def set_fecha_ultima_actualizacion(self, nombre_competicion, fecha):
+        """
+        Modifica la fecha de la última actualización de una competición
+        :param nombre_competicion: nombre de la competición
+        :param fecha: fecha de la última actualización
+        :return:
+        """
         conn = sqlite3.connect(self.archivo_bd)
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
@@ -721,6 +1000,10 @@ class Panel:
         conn.close()
 
     def get_competiciones(self):
+        """
+        Devuelve una lista de objetos de tipo Competicion con las competiciones del panel
+        :return: lista con las competiciones del panel
+        """
         conn = sqlite3.connect(self.archivo_bd)
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
@@ -733,11 +1016,20 @@ class Panel:
         return lista_obj_competiciones
 
     def actualizar_competiciones(self):
+        """
+        Actualiza todas las competiciones del panel
+        :return:
+        """
         competiciones = self.get_competiciones()
         for competicion in competiciones:
             self.actualizar_competicion(competicion)
 
     def actualizar_competicion(self, competicion):
+        """
+        Actualiza una competición del panel
+        :param competicion: objeto de tipo Competicion
+        :return:
+        """
         if isinstance(competicion, Competicion):
             competicion.actualizar_bd()
         else:
@@ -749,6 +1041,11 @@ class Panel:
 
 
     def eliminar_competicion(self, competicion):
+        """
+        Elimina una competición del panel
+        :param competicion: objeto de tipo Competicion
+        :return:
+        """
         if isinstance(competicion, Competicion):
             nombre = competicion.nombre
         else:
@@ -761,6 +1058,11 @@ class Panel:
         conn.close()
 
     def eliminar_competicion_por_nombre(self, nombre_competicion):
+        """
+        Elimina una competición del panel a partir de su nombre
+        :param nombre_competicion: nombre de la competición
+        :return:
+        """
         conn = sqlite3.connect(self.archivo_bd)
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
@@ -769,6 +1071,11 @@ class Panel:
         conn.close()
 
     def eliminar_competicion_por_id(self, competicion_id):
+        """
+        Elimina una competición del panel a partir de su id
+        :param competicion_id: id de la competición
+        :return:
+        """
         conn = sqlite3.connect(self.archivo_bd)
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
@@ -777,6 +1084,10 @@ class Panel:
         conn.close()
 
     def eliminar_competiciones(self):
+        """
+        Elimina todas las competiciones del panel
+        :return:
+        """
         conn = sqlite3.connect(self.archivo_bd)
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
@@ -785,11 +1096,33 @@ class Panel:
         conn.close()
 
     def get_estadisticas_competicion(self, competicion):
+        """
+        Devuelve un diccionario con las estadísticas de una competición
+        :param competicion: objeto de tipo Competicion
+        :return:
+        """
         if isinstance(competicion, Competicion):
             competicion = competicion.nombre
         competicion = self.get_competicion(competicion)
         return competicion.get_estadisticas_competicion()
     def competiciones_to_df(self):
+        """
+        Devuelve un dataframe con las estadísticas de todas las competiciones del panel. Las estadísticas son:
+        - Nombre de la competición
+        - Número de equipos
+        - Número de partidos
+        - Número de victorias locales
+        - Número de victorias visitantes
+        - Número de empates
+        - Media de goles por partido
+        - Desviación estándar de goles por partido
+        - Media de goles de los ganadores
+        - Desviación estándar de goles de los ganadores
+        - Media de goles de los perdedores
+        - Desviación estándar de goles de los perdedores
+
+        :return: dataframe con las estadísticas de todas las competiciones del panel
+        """
         competiciones = self.get_competiciones()
         listado_competiciones = []
         for competicion in competiciones:
@@ -807,6 +1140,20 @@ class Panel:
                                                           'std_goles_perdedores'])
         return df
     def partidos_to_df(self):
+        """
+        Devuelve un dataframe con todos los partidos de todas las competiciones del panel. Las columnas son:
+        - Local
+        - Goles local
+        - Goles visitante
+        - Visitante
+        - Federación
+        - Liga
+        - Grupo
+        - Fecha
+        - Competición
+
+        :return: dataframe con todos los partidos de todas las competiciones del panel
+        """
 
         dataframes = []
         for competicion in self.get_competiciones():
@@ -814,6 +1161,12 @@ class Panel:
         return pd.concat(dataframes)
 
     def modificar_nombre_competicion(self, competicion, nuevo_nombre):
+        """
+        Modifica el nombre de una competición
+        :param competicion: objeto de tipo Competicion
+        :param nuevo_nombre: nuevo nombre de la competición
+        :return: None
+        """
         if isinstance(competicion, Competicion):
             competicion = competicion.nombre
         conn = sqlite3.connect(self.archivo_bd)
@@ -824,6 +1177,13 @@ class Panel:
         conn.close()
 
     def modificar_enlace_a_competicion(self, competicion, enlace, nuevo_enlace):
+        """
+        Modifica un enlace de una competición
+        :param competicion: objeto de tipo Competicion
+        :param enlace: enlace a modificar
+        :param nuevo_enlace: nuevo enlace por el que se sustituye el anterior
+        :return:
+        """
         if isinstance(competicion, Competicion):
             competicion = competicion.nombre
         conn = sqlite3.connect(self.archivo_bd)
@@ -850,6 +1210,10 @@ class Panel:
         competiciones = self.get_competiciones()
         return f"Panel: {self.archivo_bd} - Competiciones: {competiciones}"
     def to_dict(self):
+        """
+        Devuelve un diccionario con la información del panel
+        :return: diccionario con la información del panel
+        """
         competiciones = self.get_competiciones()
         dict_lista_competiciones = []
 
@@ -860,9 +1224,18 @@ class Panel:
             "lista_competiciones": dict_lista_competiciones
         }
     def to_json(self):
+        """
+        Devuelve un string en formato JSON con la información del panel
+        :return:
+        """
         return json.dumps(self.to_dict())
 
 def competicion_from_json(json_string):
+    """
+    Devuelve un objeto de tipo Competicion a partir de un string en formato JSON
+    :param json_string: string en formato JSON
+    :return: objeto de tipo Competicion
+    """
     diccionario = json.loads(json_string)
     return Competicion( lista_urls=diccionario["lista_urls"],
                         nombre_bd=diccionario["nombre_archivo_bd"],
@@ -870,6 +1243,12 @@ def competicion_from_json(json_string):
                         ultima_actualizacion=diccionario["ultima_actualizacion"],
                         actualizar_al_iniciar=False)
 def panel_from_json(json_string):
+    """
+    Devuelve un objeto de tipo Panel a partir de un string en formato JSON
+    :param json_string: string en formato JSON
+    :return: objeto de tipo Panel
+    """
+
     diccionario = json.loads(json_string)
 
 
@@ -880,6 +1259,11 @@ def panel_from_json(json_string):
 
 
 def panel_from_db(nombre_archivo):
+    """
+    Devuelve un objeto de tipo Panel a partir de un archivo de base de datos
+    :param nombre_archivo: nombre del archivo de base de datos
+    :return: objeto de tipo Panel
+    """
     conn = sqlite3.connect(nombre_archivo)
     cursor = conn.cursor()
     try:
@@ -903,12 +1287,14 @@ def panel_from_db(nombre_archivo):
 
 if __name__ == "__main__":
     mi_panel = panel_from_db("panel.db")
-    # mi_panel.actualizar_competiciones()
+    mi_panel.actualizar_competiciones()
     mi_compe = mi_panel.get_competiciones()[0]
-    mi_equipo = mi_compe.get_equipos()[0]
-    clasificacion = mi_compe.get_clasificacion()
-    print(clasificacion)
+    partidos = mi_compe.get_partidos()
+    equipos = mi_compe.get_equipos()
 
+    print(mi_compe.get_estadisticas_competicion())
+    for equipo in equipos:
+        print(equipo)
 
 
 

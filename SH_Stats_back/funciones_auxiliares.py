@@ -1,7 +1,11 @@
 import re
 
-
 def acortar_campo(campo):
+    """
+    Función que acorta el campo de juego para que sea más legible
+    :param campo: string del campo a acortar
+    :return: campo acortado
+    """
     campo = campo.replace("PRIMERA", "1a")
     campo = campo.replace("SEGUNDA", "2a")
     campo = campo.replace("TERCERA", "3a")
@@ -72,17 +76,4 @@ def get_federacion_by_index(index):
         case _:
             return index
 
-def convert_url(url_entrada):
-    try:
-        seleccion = url_entrada.split("seleccion=")[1][0]
-        id = url_entrada.split("id=")[1]
-        id = id.split("&")[0]
-        url_nuevo = f"https://www.rfebm.com/competiciones/resultados_completos.php?seleccion={seleccion}&id={id}"
-        return url_nuevo
-    except:
-        return url_entrada
-
-if __name__ == "__main__":
-    url = "https://www.rfebm.com/competiciones/resultados_completos.php?seleccion=0&id=1018419"
-    print(convert_url(url))
 
