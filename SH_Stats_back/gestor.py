@@ -509,6 +509,11 @@ class Competicion:
         - Peor derrota
         - Mejor diferencia de goles
         - Peor diferencia de goles
+        - Clasificación
+        - Goles a favor esperados (regresión lineal)
+        - Goles en contra esperados (regresión lineal)
+        - Goles a favor por partido esperados (regresión lineal)
+        - Goles en contra por partido esperados (regresión lineal)
 
         :param equipo: objeto de tipo Equipo del que se quieren obtener las estadísticas
         :return: diccionario con las estadísticas del equipo
@@ -683,6 +688,22 @@ class Competicion:
         std_gc_ultimos_5 = np.std(gc_ultimos_5)
         std_gc_ultimos_5 = round(std_gc_ultimos_5, 2)
 
+        # Clasicacion
+        clasificacion = self.get_clasificacion()
+        puesto = clasificacion[clasificacion['nombre'] == equipo.nombre].index[0]
+        puesto = int(puesto.split(".")[0])
+        goles_esperados = self.get_goles_esperados(puesto)
+        gf_esperados_por_partido = goles_esperados["gf"]
+        gc_esperados_por_partido = goles_esperados["gc"]
+
+
+
+        print(f"{equipo.nombre}: GF {gf_esperados_por_partido} - GC {gc_esperados_por_partido} - Partidos {len(partidos)}")
+
+
+
+
+
 
 
 
@@ -697,7 +718,34 @@ class Competicion:
                 "gt_y_diferencia": gt_y_diferencia,
                 "mejor_victoria": mejor_victoria, "peor_derrota": peor_derrota,
                 "victorias_ultimos_5": victorias_ultimos_5, "derrotas_ultimos_5": derrotas_ultimos_5, "empates_ultimos_5": empates_ultimos_5,
-                "avg_gf_ultimos_5": avg_gf_ultimos_5, "avg_gc_ultimos_5": avg_gc_ultimos_5, "std_gf_ultimos_5": std_gf_ultimos_5, "std_gc_ultimos_5": std_gc_ultimos_5}
+                "avg_gf_ultimos_5": avg_gf_ultimos_5, "avg_gc_ultimos_5": avg_gc_ultimos_5, "std_gf_ultimos_5": std_gf_ultimos_5, "std_gc_ultimos_5": std_gc_ultimos_5,
+                "puesto": puesto,
+                "gf_esperados_por_partido": gf_esperados_por_partido, "gc_esperados_por_partido": gc_esperados_por_partido}
+
+    def get_goles_esperados(self, puesto):
+        """
+        Devuelve los valores de GF por partido y GC por partido esperados dados el puesto. Se calculan a partir de una regresión linea
+        :param puesto: puesto en la clasificación
+        :return: Diccionario con los valores de GF y GC esperados
+        """
+        clasificacion = self.get_clasificacion()
+
+        X = []
+        for i in range(1, len(clasificacion.index) + 1):
+            X.append(i)
+        Y = []
+        Z = []
+        for index, row in clasificacion.iterrows():
+            Y.append(row['gf'] / (row['victorias'] + row['derrotas'] + row['empates']))
+            Z.append(row['gc'] / (row['victorias'] + row['derrotas'] + row['empates']))
+        coef = np.polyfit(X, Y, 1)
+        poly1d_fn = np.poly1d(coef)
+        gf_esperados = round(poly1d_fn(puesto), 2)
+        coef = np.polyfit(X, Z, 1)
+        poly1d_fn = np.poly1d(coef)
+        gc_esperados = round(poly1d_fn(puesto), 2)
+        return {"gf": gf_esperados, "gc": gc_esperados}
+
 
     def get_estadisticas_competicion(self):
         """

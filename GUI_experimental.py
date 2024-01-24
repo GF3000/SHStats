@@ -19,7 +19,7 @@ import SH_Stats_back.gestor as gestor
 PANEL_PATH = "config/panel.db"
 ORDENAR_PARTIDOS_POR = {"Mayor diferencia":1, "Menor diferencia":2, "Más goles por partido":3, "Menos goles por partido":4, "Más goles ganadores":5, "Menos goles ganadores":6, "Más goles perdedores":7, "Menos goles perdedores":8}
 class App(customtkinter.CTk):
-    panel = gestor.Panel("Panel Predeterminado", [])
+
     def __init__(self):
         super().__init__()
         self.title("Spanish Handball Stats")
@@ -553,15 +553,12 @@ class App(customtkinter.CTk):
         # Tab General
 
         # Tab General - Clasificación
-        # set height
-        # tamanno = len(self.panel.get_competicion(nombre_competicion).get_equipos()) if self.panel is not None else 2
-        # self.clasificacion_treeview.configure(height=tamanno)
         clasificacion_df = self.panel.get_competicion(nombre_competicion).get_clasificacion()
         self.clasificacion_treeview.delete(*self.clasificacion_treeview.get_children())
         for index, row in clasificacion_df.iterrows():
             self.clasificacion_treeview.insert(parent="", index="end", iid=index, text="", values=(
-            index, row["nombre"], row["temporada"], row["gf"], row["gc"], row["victorias"], row["derrotas"],
-            row["empates"]))
+                index, row["nombre"], row["temporada"], row["gf"], row["gc"], row["victorias"], row["derrotas"],
+                row["empates"]))
 
         # Tab Equipos
         # Cargar listado de equipos
@@ -585,7 +582,7 @@ class App(customtkinter.CTk):
         etiqueta.pack(padx=10, pady=(20, 0))
         # Crear TreeView 1: Equipos, Partidos
         treeview = ttk.Treeview(self.estadisticas_frame, columns=('Equipos', 'Partidos'), show='headings',
-                                      height=1)
+                                height=1)
         treeview.column('Equipos', anchor="center", width=50)
         treeview.column('Partidos', anchor="center", width=50)
         treeview.heading('Equipos', text='Equipos', anchor="center")
@@ -600,8 +597,8 @@ class App(customtkinter.CTk):
 
         # Crear TreeView 2: Victorias Locales, Victorias Visitantes, Empates
         treeview = ttk.Treeview(self.estadisticas_frame,
-                                      columns=('Victorias Locales', 'Victorias Visitantes', 'Empates'), show='headings',
-                                      height=1)
+                                columns=('Victorias Locales', 'Victorias Visitantes', 'Empates'), show='headings',
+                                height=1)
         treeview.column('Victorias Locales', anchor="center", width=50)
         treeview.column('Victorias Visitantes', anchor="center", width=50)
         treeview.column('Empates', anchor="center", width=50)
@@ -617,9 +614,9 @@ class App(customtkinter.CTk):
 
         # Crear TreeView 3: Goles por partido, Goles Ganadores, Goles perdedores
         treeview = ttk.Treeview(self.estadisticas_frame,
-                                      columns=('Goles por partido', 'Goles Ganadores', 'Goles perdedores'),
-                                      show='headings',
-                                      height=1)
+                                columns=('Goles por partido', 'Goles Ganadores', 'Goles perdedores'),
+                                show='headings',
+                                height=1)
         treeview.column('Goles por partido', anchor="center", width=50)
         treeview.column('Goles Ganadores', anchor="center", width=50)
         treeview.column('Goles perdedores', anchor="center", width=50)
@@ -657,6 +654,33 @@ class App(customtkinter.CTk):
         violinplot_competicion.draw()
         violinplot_competicion.get_tk_widget().pack(expand=True, fill="both", padx=10, pady=10)
 
+
+        # Creamos puestos
+        index = []
+        for i in range(1, len(clasificacion_df.index) + 1):
+            index.append(i)
+
+        # Puesto y GF
+        gf_por_partido = []
+        for i in range(0, len(clasificacion_df.index)):
+            gf_por_partido.append(clasificacion_df.iloc[i]["gf"] / (clasificacion_df.iloc[i]["victorias"] + clasificacion_df.iloc[i]["derrotas"] + clasificacion_df.iloc[i]["empates"]))
+
+        datos = [index, gf_por_partido]
+        fig_puesto_gf, ax = self.crear_scatterplot(datos=datos, titulo="Puesto y goles a favor de " + nombre_competicion, ylabel="Goles a favor", xlabel="Puesto", dark=True, linea_vertical=False)
+        scatterplot_competicion = FigureCanvasTkAgg(fig_puesto_gf, master=self.graficos_frame)
+        scatterplot_competicion.draw()
+        scatterplot_competicion.get_tk_widget().pack(expand=True, fill="both", padx=10, pady=10)
+
+        # Puesto y GC
+        gc_por_partido = []
+        for i in range(0, len(clasificacion_df.index)):
+            gc_por_partido.append(clasificacion_df.iloc[i]["gc"] / (clasificacion_df.iloc[i]["victorias"] + clasificacion_df.iloc[i]["derrotas"] + clasificacion_df.iloc[i]["empates"]))
+        datos = [index, gc_por_partido]
+        fig_puesto_gc, ax = self.crear_scatterplot(datos=datos, titulo="Puesto y goles en contra de " + nombre_competicion, ylabel="Goles en contra", xlabel="Puesto", dark=True, linea_vertical=False)
+        scatterplot_competicion = FigureCanvasTkAgg(fig_puesto_gc, master=self.graficos_frame)
+        scatterplot_competicion.draw()
+        scatterplot_competicion.get_tk_widget().pack(expand=True, fill="both", padx=10, pady=10)
+
         # Tab Partidos
 
         #
@@ -671,7 +695,7 @@ class App(customtkinter.CTk):
         self.partidos_treeview.delete(*self.partidos_treeview.get_children())
         for index, row in partidos_df.iterrows():
             self.partidos_treeview.insert(parent="", index="end", iid=index, text="", values=(
-            row["local"], row["gl"], row["gv"], row["visitante"]))
+                row["local"], row["gl"], row["gv"], row["visitante"]))
 
         # Tab Equipos
         self.equipos_buscador_combobox.set("")
@@ -796,17 +820,23 @@ class App(customtkinter.CTk):
             widget.destroy()
 
         # Goles a favor y en contra
-        treeview = ttk.Treeview(self.equipos_estadisticas_frame, columns=("Goles a favor", "Goles en contra"), show='headings', height=1)
+        label = customtkinter.CTkLabel(self.equipos_estadisticas_frame, text="Información general", font=customtkinter.CTkFont(size=20, weight="bold"))
+        label.pack(padx=10, pady=10)
+        treeview = ttk.Treeview(self.equipos_estadisticas_frame, columns=("Puesto", "Goles a favor", "Goles en contra"), show='headings', height=1)
         treeview.pack(fill="both", padx=10, pady=10)
+        treeview.column("Puesto", anchor="center", width=50)
         treeview.column("Goles a favor", anchor="center", width=50)
         treeview.column("Goles en contra", anchor="center", width=50)
+        treeview.heading("Puesto", text="Puesto", anchor="center")
         treeview.heading("Goles a favor", text="Goles a favor", anchor="center")
         treeview.heading("Goles en contra", text="Goles en contra", anchor="center")
 
-        treeview.insert(parent="", index="end", iid=0, text="", values=(sum(estadisticas["gf"]), sum(estadisticas["gc"])))
+        treeview.insert(parent="", index="end", iid=0, text="", values=(estadisticas["puesto"],sum(estadisticas["gf"]), sum(estadisticas["gc"])))
 
 
         # Media de goles a favor y en contra
+        label = customtkinter.CTkLabel(self.equipos_estadisticas_frame, text="Goles por partido", font=customtkinter.CTkFont(size=20, weight="bold"))
+        label.pack(padx=10, pady=10)
         treeview = ttk.Treeview(self.equipos_estadisticas_frame, columns=("Goles a favor", "Goles en contra"), show='headings', height=1)
         treeview.pack(fill="both", padx=10, pady=10)
 
@@ -817,7 +847,24 @@ class App(customtkinter.CTk):
 
         treeview.insert(parent="", index="end", iid=0, text="", values=(str(estadisticas["avg_gf"]) + " ± " + str(estadisticas["std_gf"]), str(estadisticas["avg_gc"]) + " ± " + str(estadisticas["std_gc"])))
 
+        # Goles por partido esperados
+        # label = customtkinter.CTkLabel(self.equipos_estadisticas_frame, text="Goles por partido esperados", font=customtkinter.CTkFont(size=20, weight="bold"))
+        # label.pack(padx=10, pady=10)
+        treeview = ttk.Treeview(self.equipos_estadisticas_frame, columns=("Goles a favor", "Goles en contra"), show='headings', height=1)
+        treeview.pack(fill="both", padx=10, pady=10)
+        treeview.column("Goles a favor", anchor="center", width=50)
+        treeview.column("Goles en contra", anchor="center", width=50)
+        treeview.heading("Goles a favor", text="Goles a favor esperados", anchor="center")
+        treeview.heading("Goles en contra", text="Goles en contra esperados", anchor="center")
+        treeview.insert(parent="", index="end", iid=0, text="",
+                        values=(estadisticas["gf_esperados_por_partido"], estadisticas["gc_esperados_por_partido"]))
+
+
+
         # Victorias, derrotas y empates locales y visitantes
+
+        label = customtkinter.CTkLabel(self.equipos_estadisticas_frame, text="Victorias, derrotas y empates", font=customtkinter.CTkFont(size=20, weight="bold"))
+        label.pack(padx=10, pady=10)
         treeview = ttk.Treeview(self.equipos_estadisticas_frame, columns=("Tipo", "Victorias", "Derrotas", "Empates"), show='headings', height=3)
         treeview.pack( fill="both", padx=10, pady=10)
         treeview.column("Tipo", anchor="center", width=50)
@@ -845,8 +892,6 @@ class App(customtkinter.CTk):
 
         treeview.insert(parent="", index="end", iid=0, text="", values=(estadisticas["mayor_racha_victorias"], estadisticas["mayor_racha_derrotas"], estadisticas["mayor_racha_empates"]))
 
-        label = customtkinter.CTkLabel(self.equipos_estadisticas_frame, text="Histórico", font=customtkinter.CTkFont(size=20, weight="bold"))
-        label.pack(padx=10, pady=10)
         # Mejor victoria
         treeview = ttk.Treeview(self.equipos_estadisticas_frame, columns=("Mejor Victoria",), show='headings', height=1)
         treeview.pack(fill="both", padx=10, pady=10)
@@ -887,24 +932,22 @@ class App(customtkinter.CTk):
         treeview.insert(parent="", index="end", iid=0, text="", values=(f"{estadisticas["avg_gf_ultimos_5"]} ± {estadisticas["std_gf_ultimos_5"]}", f"{estadisticas["avg_gc_ultimos_5"]} ± {estadisticas["std_gc_ultimos_5"]}"))
 
 
-
-
-
-        gf = competicion.get_estadisticas_equipo(equipo)["gf"]
-        gc = competicion.get_estadisticas_equipo(equipo)["gc"]
+        # Gráficos
+        gf = estadisticas["gf"]
+        gc = estadisticas["gc"]
         goles = [gf, gc]
         labels = ["Goles a favor", "Goles en contra"]
         fig_violinplot, ax = self.crear_violinplot(datos=goles, labels=labels, titulo="Violinplot de goles de " + nombre_equipo, ylabel="Goles", xlabel="Tipo de gol", dark=True)
         # plt.tight_layout()
 
         # Gráficos/ Scatterplot
-        gt_y_diferencia = competicion.get_estadisticas_equipo(equipo)["gt_y_diferencia"]
+        gt_y_diferencia = estadisticas["gt_y_diferencia"]
         valores_x = []
         valores_y = []
         for i in gt_y_diferencia:
             valores_x.append(i[1])
             valores_y.append(i[0])
-        fig_scatter, ax = self.crear_scatterplot(datos=[valores_x, valores_y], titulo="Scatterplot de goles de " + nombre_equipo, ylabel="Goles totales", xlabel="Diferencia", dark=True)
+        fig_scatter, ax = self.crear_scatterplot(datos=[valores_x, valores_y], titulo="Scatterplot de goles de " + nombre_equipo, ylabel="Goles totales", xlabel="Diferencia", dark=True, linea_vertical=True)
 
         # Clear frame
         for widget in self.equipos_graficos_frame.winfo_children():
@@ -992,7 +1035,7 @@ class App(customtkinter.CTk):
         plt.tight_layout()
         return fig, ax
 
-    def crear_scatterplot(self, ax = None, datos = None, titulo = None, ylabel = None, xlabel = None, dark = True):
+    def crear_scatterplot(self, ax = None, datos = None, titulo = None, ylabel = None, xlabel = None, dark = True, linea_vertical = True):
         color_fondo = "#2a2d2e" if dark else "white"
         color_texto = "white" if dark else "black"
         color_puntos = "white" if dark else "black"
@@ -1005,9 +1048,12 @@ class App(customtkinter.CTk):
         polynomial = np.poly1d(coefficients)
         tendencia_x = np.linspace(min(datos[0]), max(datos[0]), 100)
         tendencia_y = polynomial(tendencia_x)
+        # print(polynomial)
+
         ax.plot(tendencia_x, tendencia_y, color='C0', label='Línea de tendencia', linewidth=1.5 )
         # Draw a vertical line at x= 0
-        ax.axvline(x=0, color=color_texto, linewidth=1.5, alpha=0.5, linestyle='--')
+        if linea_vertical:
+            ax.axvline(x=0, color=color_texto, linewidth=1.5, alpha=0.5, linestyle='--')
 
         ax.scatter(datos[0], datos[1], color="C0", s=20)
         ax.spines["bottom"].set_color(color_texto)
