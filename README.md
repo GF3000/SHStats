@@ -14,8 +14,8 @@ Spanish Handball Stats es la primera herramienta de extracción de datos automá
 **GitHub:** [GF3000](https://github.com/GF3000)
 
 ## USO
-Consulta la página web oficial para más información:  
-[Web oficial](https://guillermofranco.notion.site/8b35019a2d8749188b925809f87e5236?v=ff4a0ea1a5ae4f3e85882a8468668bcb)
+Consulta la página [web oficial](https://guillermofranco.notion.site/8b35019a2d8749188b925809f87e5236?v=ff4a0ea1a5ae4f3e85882a8468668bcb) para más información:  
+
 
 ¡Disfruta de SHStats!
 
