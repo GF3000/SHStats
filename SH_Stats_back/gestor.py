@@ -8,7 +8,7 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
 
-from SH_Stats_back import creacion_df, conexion
+from SH_Stats_back import creacion_df, conexion, funciones_auxiliares
 
 
 
@@ -26,14 +26,16 @@ class Competicion:
         :param actualizar_al_iniciar: booleano que indica si se debe actualizar la base de datos al iniciar
         :param ultima_actualizacion: fecha de la última actualización de la base de datos
         """
+
         if isinstance(lista_urls, str):
             lista_urls = [lista_urls]
         self.enlaces = lista_urls
         self.nombre = nombre
         self.ultima_actualizacion = ultima_actualizacion
         self.competicion_id = competicion_id
-        self.nombre_archivo_bd = nombre_bd #if nombre_bd else "db/" + nombre.replace(" ", "_") + ".db"
+        self.nombre_archivo_bd = nombre_bd
         self.crear_bd()
+
 
         if actualizar_al_iniciar:
             self.actualizar_bd()
@@ -57,7 +59,7 @@ class Competicion:
         Devuelve el nombre de la competición
         :return: nombre de la competición
         """
-        conn = sqlite3.connect(self.nombre_archivo_bd)
+        conn = sqlite3.connect(funciones_auxiliares.resource_path(self.nombre_archivo_bd))
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
         cursor.execute('''SELECT nombre_competicion FROM Competiciones WHERE competicion_id=?''', (self.competicion_id,))
@@ -135,9 +137,10 @@ class Competicion:
         Crea la base de datos si no existe. Si existe, no hace nada
         :return:
         """
-        if not os.path.exists(self.nombre_archivo_bd):
+
+        if not os.path.exists(funciones_auxiliares.resource_path("res/panel.db")):
             # Create an empty .db file
-            open(self.nombre_archivo_bd, 'w').close()
+            open(funciones_auxiliares.resource_path("res/panel.db"), 'w').close()
             self.crear_tabla_equipos([])
             self.crear_tabla_partidos(pd.DataFrame())
 
@@ -159,7 +162,7 @@ class Competicion:
 
 
         self.crear_bd()
-        conn = sqlite3.connect(self.nombre_archivo_bd)
+        conn = sqlite3.connect(funciones_auxiliares.resource_path(self.nombre_archivo_bd))
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
         cursor.execute('''DELETE FROM Partidos WHERE competicion_id=?''', (self.competicion_id,))
@@ -187,7 +190,7 @@ class Competicion:
         :param ultima_actualizacion: fecha de la última actualización
         :return:
         """
-        conn = sqlite3.connect(self.nombre_archivo_bd)
+        conn = sqlite3.connect(funciones_auxiliares.resource_path(self.nombre_archivo_bd))
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
         cursor.execute('''UPDATE Competiciones SET ultima_actualizacion=? WHERE competicion_id=?''', (ultima_actualizacion, self.competicion_id))
@@ -202,7 +205,7 @@ class Competicion:
         :return:
         """
 
-        conn = sqlite3.connect(self.nombre_archivo_bd)
+        conn = sqlite3.connect(funciones_auxiliares.resource_path(self.nombre_archivo_bd))
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;') # Necesario para que funcionen las claves foráneas
 
@@ -234,7 +237,7 @@ class Competicion:
         :return:
         """
 
-        conn = sqlite3.connect(self.nombre_archivo_bd)
+        conn = sqlite3.connect(funciones_auxiliares.resource_path(self.nombre_archivo_bd))
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
 
@@ -277,7 +280,7 @@ class Competicion:
         :param nombre_equipo: nombre del equipo
         :return: id del equipo
         """
-        conn = sqlite3.connect(self.nombre_archivo_bd)
+        conn = sqlite3.connect(funciones_auxiliares.resource_path(self.nombre_archivo_bd))
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
         cursor.execute('''SELECT equipo_id FROM Equipos WHERE nombre_equipo=? AND competicion_id=?''', (nombre_equipo, self.competicion_id))
@@ -290,7 +293,7 @@ class Competicion:
         Devuelve una lista de objetos de tipo Equipo con los equipos de la competición
         :return: lista de objetos de tipo Equipo con los equipos de la competición
         """
-        conn = sqlite3.connect(self.nombre_archivo_bd)
+        conn = sqlite3.connect(funciones_auxiliares.resource_path(self.nombre_archivo_bd))
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
         cursor.execute('''SELECT * FROM Equipos WHERE competicion_id=?''', (self.competicion_id,))
@@ -306,7 +309,7 @@ class Competicion:
         Devuelve una lista de objetos de tipo Partido con los partidos de la competición
         :return: lista de objetos de tipo Partido con los partidos de la competición
         """
-        conn = sqlite3.connect(self.nombre_archivo_bd)
+        conn = sqlite3.connect(funciones_auxiliares.resource_path(self.nombre_archivo_bd))
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
         # Use join to get the names of the teams
@@ -350,7 +353,7 @@ class Competicion:
         """
         if isinstance(nombre_equipo, Equipo):
             nombre_equipo = nombre_equipo.nombre
-        conn = sqlite3.connect(self.nombre_archivo_bd)
+        conn = sqlite3.connect(funciones_auxiliares.resource_path(self.nombre_archivo_bd))
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
         cursor.execute('''
@@ -388,7 +391,7 @@ class Competicion:
         :param nombre_equipo: nombre del equipo
         :return: objeto de tipo Equipo con los datos del equipo especificado
         """
-        conn = sqlite3.connect(self.nombre_archivo_bd)
+        conn = sqlite3.connect(funciones_auxiliares.resource_path(self.nombre_archivo_bd))
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
         cursor.execute('''SELECT * FROM Equipos WHERE nombre_equipo=? AND competicion_id=?''', (nombre_equipo, self.competicion_id))
@@ -396,6 +399,21 @@ class Competicion:
         conn.close()
         equipo = Equipo(equipo[1], equipo[2], equipo[3], equipo[4])
         return equipo
+
+    def get_coeficientes(self, clasificacion_df = None):
+        """
+        Devuelve un diccionario con los coeficientes de Pearson y Spearman entre los puntos y los GF y GC de los equipos
+        :return: diccionario con dos coeficientes de Pearson
+        """
+        clasificacion_df = self.get_clasificacion() if clasificacion_df is None else clasificacion_df
+        coeficientes = {}
+        clasificacion_df["gf/part"] = clasificacion_df["gf"] / (clasificacion_df["victorias"] + clasificacion_df["derrotas"] + clasificacion_df["empates"])
+        clasificacion_df["gc/part"] = clasificacion_df["gc"] / (clasificacion_df["victorias"] + clasificacion_df["derrotas"] + clasificacion_df["empates"])
+        coeficientes["GF_Pearson"] = clasificacion_df['gf/part'].corr(clasificacion_df['puntos'], method='pearson')
+        coeficientes["GC_Pearson"] = clasificacion_df['gc/part'].corr(clasificacion_df['puntos'], method='pearson')
+        # coeficientes["GF_Spearman"] = clasificacion_df['gf'].corr(clasificacion_df['puntos'], method='spearman')
+        # coeficientes["GC_Spearman"] = clasificacion_df['gc'].corr(clasificacion_df['puntos'], method='spearman')
+        return coeficientes
 
     def get_clasificacion(self):
         """
@@ -483,7 +501,7 @@ class Competicion:
                     empates += 1
         return {"victorias": victorias, "derrotas": derrotas, "empates": empates}
 
-    def get_estadisticas_equipo(self, equipo):
+    def get_estadisticas_equipo(self, equipo, df_partidos=None, df_clasificacion=None):
         """
         Devuelve un diccionario con las estadísticas de un equipo. Las estadísticas son:
         - Media de goles a favor
@@ -516,6 +534,8 @@ class Competicion:
         - Goles en contra por partido esperados (regresión lineal)
 
         :param equipo: objeto de tipo Equipo del que se quieren obtener las estadísticas
+        :param df_partidos: DataFrame con los partidos de la competición
+        :param df_clasificacion: DataFrame con la clasificación de la competición
         :return: diccionario con las estadísticas del equipo
         """
 
@@ -689,23 +709,12 @@ class Competicion:
         std_gc_ultimos_5 = round(std_gc_ultimos_5, 2)
 
         # Clasicacion
-        clasificacion = self.get_clasificacion()
+        clasificacion = self.get_clasificacion() if df_clasificacion is None else df_clasificacion
         puesto = clasificacion[clasificacion['nombre'] == equipo.nombre].index[0]
         puesto = int(puesto.split(".")[0])
-        goles_esperados = self.get_goles_esperados(puesto)
+        goles_esperados = self.get_goles_esperados(puesto, clasificacion)
         gf_esperados_por_partido = goles_esperados["gf"]
         gc_esperados_por_partido = goles_esperados["gc"]
-
-
-
-        print(f"{equipo.nombre}: GF {gf_esperados_por_partido} - GC {gc_esperados_por_partido} - Partidos {len(partidos)}")
-
-
-
-
-
-
-
 
         return {"avg_gf": avg_gf, "avg_gc": avg_gc, "std_gf": std_gf, "std_gc": std_gc,
                 "gf": gf, "gc": gc, "victorias": victorias, "derrotas": derrotas, "empates": empates,
@@ -722,13 +731,14 @@ class Competicion:
                 "puesto": puesto,
                 "gf_esperados_por_partido": gf_esperados_por_partido, "gc_esperados_por_partido": gc_esperados_por_partido}
 
-    def get_goles_esperados(self, puesto):
+    def get_goles_esperados(self, puesto, clasificacion_df = None):
         """
         Devuelve los valores de GF por partido y GC por partido esperados dados el puesto. Se calculan a partir de una regresión linea
         :param puesto: puesto en la clasificación
+        :param clasificacion_df: DataFrame con la clasificación de la competición
         :return: Diccionario con los valores de GF y GC esperados
         """
-        clasificacion = self.get_clasificacion()
+        clasificacion = self.get_clasificacion() if clasificacion_df is None else clasificacion_df
 
         X = []
         for i in range(1, len(clasificacion.index) + 1):
@@ -872,7 +882,7 @@ class Panel:
         :param lista_competiciones: Lista de competiciones
         """
         self.lista_competiciones = lista_competiciones
-        self.archivo_bd = archivo_bd
+        self.archivo_bd = "res/panel.db" # Archivo de la base de datos
         self.crear_tabla_panel()
 
     def add_competicion(self, competicion):
@@ -882,8 +892,15 @@ class Panel:
         :return:
         """
 
+
+
         if isinstance(competicion, Competicion):
-            conn = sqlite3.connect(self.archivo_bd)
+            print("Añadiendo competición al panel")
+
+            competicion.crear_tabla_equipos([])
+            #empty dataframe
+            competicion.crear_tabla_partidos(pd.DataFrame(columns=['local', 'visitante', 'gl', 'gv', 'federacion', 'liga', 'grupo', 'fecha', 'competicion']))
+            conn = sqlite3.connect(funciones_auxiliares.resource_path(self.archivo_bd))
             cursor = conn.cursor()
             conn.execute('PRAGMA foreign_keys = ON;')
             cursor.execute('''INSERT INTO Competiciones (nombre_competicion, nombre_archivo_bd, lista_urls, ultima_actualizacion) VALUES (?,?,?,?)''',
@@ -899,10 +916,10 @@ class Panel:
         Crea la tabla de competiciones en la base de datos si no existe
         :return:
         """
-        if not os.path.exists(self.archivo_bd):
+        if not os.path.exists(funciones_auxiliares.resource_path(self.archivo_bd)):
             # Create an empty .db file
-            open(self.archivo_bd, 'w').close()
-        conn = sqlite3.connect(self.archivo_bd)
+            open(funciones_auxiliares.resource_path(self.archivo_bd), 'w').close()
+        conn = sqlite3.connect(funciones_auxiliares.resource_path(self.archivo_bd))
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
 
@@ -925,7 +942,7 @@ class Panel:
         Actualiza la tabla de competiciones en la base de datos. Borra todas las competiciones y las vuelve a añadir
         :return:
         """
-        conn = sqlite3.connect(self.archivo_bd)
+        conn = sqlite3.connect(funciones_auxiliares.resource_path(self.archivo_bd))
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = OFF;') # Desactivar las foreign keys para poder actualizar las competiciones
         cursor.execute('''DELETE FROM Competiciones''')
@@ -942,7 +959,7 @@ class Panel:
         :param nombre_competicion: nombre de la competición
         :return: id de la competición
         """
-        conn = sqlite3.connect(self.archivo_bd)
+        conn = sqlite3.connect(funciones_auxiliares.resource_path(self.archivo_bd))
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
         cursor.execute('''SELECT competicion_id FROM Competiciones WHERE nombre_competicion=?''', (nombre_competicion,))
@@ -971,12 +988,21 @@ class Panel:
         """
 
         # Preprocesar el enlace
-        seleccion = enlace.split("seleccion=")[1].split("&")[0]
-        id = enlace.split("id=")[1].split("&")[0]
+        if ("id=" not in enlace) or ("seleccion=" not in enlace):
+
+            soup = conexion.get_soup(enlace)
+            etiqueta = soup.find_all('div', class_='capa_jornada btn-default')
+            seleccion = etiqueta[0].a['href'].split("seleccion=")[1].split("&")[0]
+            id = etiqueta[0].a['href'].split("id=")[1].split("&")[0]
+
+        else:
+            seleccion = enlace.split("seleccion=")[1].split("&")[0]
+            id = enlace.split("id=")[1].split("&")[0]
+
         nuevo_enlace = f"https://www.rfebm.com/competiciones/resultados_completos.php?seleccion={seleccion}&id={id}"
 
 
-        conn = sqlite3.connect(self.archivo_bd)
+        conn = sqlite3.connect(funciones_auxiliares.resource_path(self.archivo_bd))
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
         competicion_id = self.get_id_competicion(nombre_competicion)
@@ -1008,7 +1034,7 @@ class Panel:
         :param enlace: enlace a eliminar
         :return:
         """
-        conn = sqlite3.connect(self.archivo_bd)
+        conn = sqlite3.connect(funciones_auxiliares.resource_path(self.archivo_bd))
         cursor = conn.cursor()
         competicion_id = self.get_id_competicion(nombre_competicion)
         conn.execute('PRAGMA foreign_keys = ON;')
@@ -1039,7 +1065,7 @@ class Panel:
         :param fecha: fecha de la última actualización
         :return:
         """
-        conn = sqlite3.connect(self.archivo_bd)
+        conn = sqlite3.connect(funciones_auxiliares.resource_path(self.archivo_bd))
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
         competicion_id = self.get_id_competicion(nombre_competicion)
@@ -1052,7 +1078,7 @@ class Panel:
         Devuelve una lista de objetos de tipo Competicion con las competiciones del panel
         :return: lista con las competiciones del panel
         """
-        conn = sqlite3.connect(self.archivo_bd)
+        conn = sqlite3.connect(funciones_auxiliares.resource_path(self.archivo_bd))
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
         cursor.execute('''SELECT * FROM Competiciones''')
@@ -1060,7 +1086,7 @@ class Panel:
         conn.close()
         lista_obj_competiciones = []
         for competicion in competiciones:
-            lista_obj_competiciones.append(Competicion(lista_urls= json.loads(competicion[3]), nombre_bd=competicion[2], nombre=competicion[1], competicion_id=competicion[0], actualizar_al_iniciar=False, ultima_actualizacion=competicion[4]))
+            lista_obj_competiciones.append(Competicion(lista_urls= json.loads(competicion[3]), nombre_bd=self.archivo_bd, nombre=competicion[1], competicion_id=competicion[0], actualizar_al_iniciar=False, ultima_actualizacion=competicion[4]))
         return lista_obj_competiciones
 
     def actualizar_competiciones(self):
@@ -1098,7 +1124,7 @@ class Panel:
             nombre = competicion.nombre
         else:
             nombre = competicion
-        conn = sqlite3.connect(self.archivo_bd)
+        conn = sqlite3.connect(funciones_auxiliares.resource_path(self.archivo_bd))
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
         cursor.execute('''DELETE FROM Competiciones WHERE nombre_competicion=?''', (nombre,))
@@ -1111,7 +1137,7 @@ class Panel:
         :param nombre_competicion: nombre de la competición
         :return:
         """
-        conn = sqlite3.connect(self.archivo_bd)
+        conn = sqlite3.connect(funciones_auxiliares.resource_path(self.archivo_bd))
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
         cursor.execute('''DELETE FROM Competiciones WHERE nombre_competicion=?''', (nombre_competicion,))
@@ -1124,7 +1150,7 @@ class Panel:
         :param competicion_id: id de la competición
         :return:
         """
-        conn = sqlite3.connect(self.archivo_bd)
+        conn = sqlite3.connect(funciones_auxiliares.resource_path(self.archivo_bd))
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
         cursor.execute('''DELETE FROM Competiciones WHERE competicion_id=?''', (competicion_id,))
@@ -1136,7 +1162,7 @@ class Panel:
         Elimina todas las competiciones del panel
         :return:
         """
-        conn = sqlite3.connect(self.archivo_bd)
+        conn = sqlite3.connect(funciones_auxiliares.resource_path(self.archivo_bd))
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
         cursor.execute('''DELETE FROM Competiciones''')
@@ -1217,7 +1243,7 @@ class Panel:
         """
         if isinstance(competicion, Competicion):
             competicion = competicion.nombre
-        conn = sqlite3.connect(self.archivo_bd)
+        conn = sqlite3.connect(funciones_auxiliares.resource_path(self.archivo_bd))
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
         cursor.execute('''UPDATE Competiciones SET nombre_competicion=? WHERE nombre_competicion=?''', (nuevo_nombre, competicion))
@@ -1234,7 +1260,7 @@ class Panel:
         """
         if isinstance(competicion, Competicion):
             competicion = competicion.nombre
-        conn = sqlite3.connect(self.archivo_bd)
+        conn = sqlite3.connect(funciones_auxiliares.resource_path(self.archivo_bd))
         cursor = conn.cursor()
         conn.execute('PRAGMA foreign_keys = ON;')
         competicion_id = self.get_id_competicion(competicion)
@@ -1306,13 +1332,13 @@ def panel_from_json(json_string):
 
 
 
-def panel_from_db(nombre_archivo):
+def panel_from_db(ruta_abs, ruta_rel):
     """
     Devuelve un objeto de tipo Panel a partir de un archivo de base de datos
     :param nombre_archivo: nombre del archivo de base de datos
     :return: objeto de tipo Panel
     """
-    conn = sqlite3.connect(nombre_archivo)
+    conn = sqlite3.connect(ruta_abs)
     cursor = conn.cursor()
     try:
         conn.execute('PRAGMA foreign_keys = ON;')
@@ -1322,19 +1348,20 @@ def panel_from_db(nombre_archivo):
         lista_obj_competiciones = []
         for competicion in competiciones:
             lista_obj_competiciones.append(
-                Competicion(lista_urls=json.loads(competicion[3]), nombre_bd=competicion[2], nombre=competicion[1],
+                Competicion(lista_urls=json.loads(competicion[3]), nombre_bd=ruta_rel, nombre=competicion[1],
                             competicion_id=competicion[0], actualizar_al_iniciar=False,
                             ultima_actualizacion=competicion[4]))
-        return Panel(nombre_archivo, lista_obj_competiciones)
+        return Panel(ruta_rel, lista_obj_competiciones)
 
     except sqlite3.OperationalError:
         conn.close()
-        return Panel(nombre_archivo)
+        print("Error en panel_from_db")
+        return Panel(ruta_rel)
 
 
 
 if __name__ == "__main__":
-    mi_panel = panel_from_db("panel.db")
+    mi_panel = panel_from_db("panel.db", "panel.db")
     mi_panel.actualizar_competiciones()
     mi_compe = mi_panel.get_competiciones()[0]
     partidos = mi_compe.get_partidos()

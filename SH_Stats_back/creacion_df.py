@@ -1,7 +1,6 @@
 import pandas as pd
-import datetime
 from SH_Stats_back import funciones_auxiliares
-from SH_Stats_back import gestor
+
 
 
 #Funciones que reciben un objeto de tipo BeautifulSoup y devuelven un DataFrame

@@ -1,1 +1,0 @@
-python ventana_main.py

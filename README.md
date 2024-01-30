@@ -11,7 +11,7 @@ Spanish Handball Stats es la primera herramienta de extracción de datos automá
 **Guillermo Franco**  
 **Twitter:** [@GuilleFrancoBM](https://twitter.com/GuilleFrancoBM)  
 **Instagram:** [@\_guillermofranco\_](https://www.instagram.com/_guillermofranco_/)  
-**GitHub:** [GF3000](https://github.com/GF3000)  
+**GitHub:** [GF3000](https://github.com/GF3000)
 
 ## Instrucciones de Instalación para SHStats en Windows
 
@@ -37,7 +37,7 @@ Actualmente SHStats no cuenta con una vesión ejecutable por lo que será necesa
 ### Paso 3: Ejecutar la Aplicación
 1. Una vez que hayas instalado las dependencias, ejecuta el programa principal 'GUI_experimental.py':
    ```bash
-   python GUI_experimental.py
+   python SHStats.py
    ```
    Esto iniciará la aplicación y podrás interactuar con la interfaz gráfica.
 
@@ -46,5 +46,10 @@ Listo! Ahora deberías tener la aplicación SHStats funcionando en tu entorno lo
 Si encuentras algún problema durante la instalación, verifica que tu entorno tenga Python y pip instalados correctamente, y que estás ejecutando estos comandos en una terminal compatible con Git y Python.
 
 ¡Disfruta de SHStats!
+
+## Licencia
+
+Este proyecto está distribuido bajo la Licencia MIT. Consulta el archivo [LICENSE](LICENSE) para obtener más detalles.
+
 
 

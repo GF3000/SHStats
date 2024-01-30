@@ -1,23 +1,26 @@
-import json
-import shutil
-import threading
-from tkinter import ttk, filedialog
-
+from sys import exit as sys_exit
+from shutil import copyfile
+from threading import Thread
 import customtkinter
-import tkinter as tk
+from tkinter import StringVar, ttk, filedialog, messagebox
 
-import numpy as np
-import pandas as pd
+from numpy import arange, polyfit, poly1d, linspace
 from CTkListbox import *
 from PIL import Image
-from customtkinter import CTkSegmentedButton, CTkImage
+from customtkinter import CTkImage
 from matplotlib import pyplot as plt, ticker
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from webbrowser import open as open_web
 
 import SH_Stats_back.gestor as gestor
+import SH_Stats_back.funciones_auxiliares as funciones_aux
 
-PANEL_PATH = "config/panel.db"
-ORDENAR_PARTIDOS_POR = {"Mayor diferencia":1, "Menor diferencia":2, "Más goles por partido":3, "Menos goles por partido":4, "Más goles ganadores":5, "Menos goles ganadores":6, "Más goles perdedores":7, "Menos goles perdedores":8}
+PANEL_PATH = "res\\panel.db"
+ICON_PATH = "res\\logo_shs_sf_dark.ico"
+LIGHT_IMAGE_PATH = "res\\logo_shs_sf_light.png"
+DARK_IMAGE_PATH = "res\\logo_shs_sf_dark.png"
+VERSION = "1.2.0"
+URL_WEB = "https://guillermofranco.notion.site/8b35019a2d8749188b925809f87e5236?v=ff4a0ea1a5ae4f3e85882a8468668bcb"
 class App(customtkinter.CTk):
 
     def __init__(self):
@@ -26,7 +29,8 @@ class App(customtkinter.CTk):
         self.geometry(f"{1100}x{580}")
         # ´maximize
         self.state("zoomed")
-        self.iconbitmap("config/logo_shs_sf_dark.ico")
+        customtkinter.set_appearance_mode("Dark")
+        self.iconbitmap(funciones_aux.resource_path(ICON_PATH))
 
         # Variables
         self.panel = None
@@ -42,10 +46,11 @@ class App(customtkinter.CTk):
         self.sidebar_frame.grid(row=0, column=0, rowspan=4, sticky="nsew")
 
 
-
-        self.logo_image = CTkImage(light_image=Image.open("config/logo_shs_sf_light.png").resize((150, 150)),
-                                      dark_image=Image.open("config/logo_shs_sf_dark.png").resize((150, 150)),
-                                      size=(150, 150))
+        light_image_path = funciones_aux.resource_path(LIGHT_IMAGE_PATH)
+        dark_image_path = funciones_aux.resource_path(DARK_IMAGE_PATH)
+        self.logo_image = CTkImage(light_image=Image.open(light_image_path).resize((150, 150)),
+                                   dark_image=Image.open(dark_image_path).resize((150, 150)),
+                                   size=(150, 150))
         self.logo_image_label = customtkinter.CTkLabel(self.sidebar_frame, image=self.logo_image, text="")
         self.logo_image_label.grid(row=0, column=0, padx=5, pady=10)
 
@@ -78,8 +83,11 @@ class App(customtkinter.CTk):
 
         self.btn_ajustes = customtkinter.CTkButton(self.sidebar_frame, text ="Ajustes", command= lambda : self.show_message("Función no implementada"))
         #self.btn_ajustes.grid(row=11, column=0, padx=20, pady=10, sticky="s")
-        self.btn_salir = customtkinter.CTkButton(self.sidebar_frame, text ="Salir", command= lambda : self.destroy())
+        self.btn_salir = customtkinter.CTkButton(self.sidebar_frame, text ="Salir", command= lambda : self.cerrar_app())
         self.btn_salir.grid(row=12, column=0, padx=20, pady=10, sticky="s")
+        #Text with version app
+        self.version_text = customtkinter.CTkLabel(self.sidebar_frame, text=f"Versión {VERSION}", font=customtkinter.CTkFont(size=10))
+        self.version_text.grid(row=13, column=0, padx=20, pady=10, sticky="s")
 
         # Competiciones
         self.competiciones_frame = customtkinter.CTkFrame(self, width=300, corner_radius=10)
@@ -122,7 +130,7 @@ class App(customtkinter.CTk):
                                                            command=self.annadir_enlace, state="disabled")
         self.btn_enlaces_annadir.grid(row=7, column=0, padx=(10, 0), pady=0, sticky="s")
         self.btn_enlaces_actualizar = customtkinter.CTkButton(self.enlaces_frame, text="Actualizar Enlaces",
-                                                              command=self.actualizar, state="disabled")
+                                                              command=self.actualizar_competicion, state="disabled")
         self.btn_enlaces_actualizar.grid(row=7, column=1, padx=(10, 0), pady=0, sticky="s")
 
 
@@ -140,7 +148,7 @@ class App(customtkinter.CTk):
         self.tabview_competicion.add("Partidos")
 
         # Competicion/General
-        self.general_segmented_button_var = tk.StringVar(value="Visualizando")
+        self.general_segmented_button_var = StringVar(value="Visualizando")
         self.general_tabview = customtkinter.CTkTabview(self.tabview_competicion.tab("General"))
         self.general_tabview.pack(expand=True, fill="both", padx=0, pady=(0,10))
         self.general_tabview.add("Estadísticas")
@@ -322,7 +330,10 @@ class App(customtkinter.CTk):
         self.partidos_buscador_combobox = customtkinter.CTkComboBox(self.partidos_frame, border_width=0, command=self.ordenar_partidos)
         self.partidos_buscador_combobox.grid(row=0, column=1, padx=10, pady=10, sticky = "ew")
         # Add values to combobox
-        valores = list(ORDENAR_PARTIDOS_POR.keys())
+
+        valores = ["Mayor diferencia", "Menor diferencia", "Más goles por partido", "Menos goles por partido", "Más goles ganadores", "Menos goles ganadores", "Más goles perdedores", "Menos goles perdedores"]
+
+
         self.partidos_buscador_combobox.configure(values=valores
                                                      , state="readonly")
         self.partidos_buscador_combobox.set("")
@@ -346,13 +357,6 @@ class App(customtkinter.CTk):
         self.partidos_treeview.configure(yscrollcommand=self.partidos_treeview_scrollbar.set)
 
 
-
-
-
-
-
-
-
         # Otras configuraciones
         self.cargar_estado()
         self.after(0, lambda: self.state('zoomed'))  # Bug en zoomed state, hay que hacerlo así
@@ -365,9 +369,57 @@ class App(customtkinter.CTk):
         self.equipos_buscador_combobox.bind("<KeyRelease>", self.actualizar_filtro)
         self.clasificacion_treeview.bind("<Double-Button-1>", self.on_clasificacion_treeview_double_click)
         self.competicion_label.bind("<Button-1>", self.modificar_nombre_competicion)
+        self.competicion_label.bind("<Enter>", self.entra_cursor)
+        self.competicion_label.bind("<Leave>", self.sale_cursor)
+        self.logo_image_label.bind("<Button-1>", self.abrir_web)
+        self.logo_image_label.bind("<Enter>", self.entra_cursor)
+        self.logo_image_label.bind("<Leave>", self.sale_cursor)
 
+
+    def entra_cursor(self, event):
+        """
+        Función que cambia el cursor cuando se pasa por encima de un widget
+        :param event:
+        :return:
+        """
+
+        try:
+            if event.widget.cget("text") != "Competición #":
+                event.widget.config(cursor="hand2")
+        except:
+            event.widget.config(cursor="hand2")
+
+    def sale_cursor(self, event):
+        """
+        Función que cambia el cursor cuando se sale de un widget
+        :param event:
+        :return:
+        """
+        event.widget.config(cursor="")
+
+    def abrir_web(self, event):
+        """
+        Función que abre la web de SHStats
+        :param event:
+        :return:
+        """
+        open_web(URL_WEB)
+
+    def cerrar_app(self):
+        """
+        Función que cierra la app.
+        :return:
+        """
+        print("Cerrando app...")
+        self.destroy()
+        sys_exit()
 
     def actualizar_filtro(self, event):
+        """
+        Función que actualiza el filtro de equipos. Se usa para el buscador de equipos.
+        :param event:
+        :return:
+        """
         filtro = self.equipos_buscador_combobox.get().lower()
         equipos = self.panel.get_competicion(self.competicion_label.cget("text")).get_equipos()
         nombres_equipos = []
@@ -378,6 +430,11 @@ class App(customtkinter.CTk):
         self.equipos_buscador_combobox.set(filtro)
 
     def on_clasificacion_treeview_double_click(self, event):
+        """
+        Función que se ejecuta cuando se hace doble click en un equipo de la clasificación.
+        :param event:
+        :return:
+        """
         #open tabview equipos
         self.tabview_competicion.set("Equipos")
         #select equipo
@@ -390,20 +447,38 @@ class App(customtkinter.CTk):
 
 
     def on_competiciones_lista_selected(self, event):
+        """
+        Función que se ejecuta cuando se selecciona una competición de la lista de competiciones.
+        :param event:
+        :return:
+        """
         if event is not None and event != self.competicion_label.cget("text"):
-            self.elegir_competicion()
+            if self.competiciones_lista.curselection() == ():
+                return
+            competicion = self.competiciones_lista.get(self.competiciones_lista.curselection())
+            self.abrir_competicion(competicion)
             if self.enlaces_lista.curselection() is not None: # If there is a selected item
                 self.enlaces_lista.deactivate(self.enlaces_lista.curselection())
     def on_enlaces_lista_selected(self, event):
+        """
+        Función que se ejecuta cuando se selecciona un enlace de la lista de enlaces.
+        :param event:
+        :return:
+        """
 
         if event is not None:
             self.modificar_enlace()
 
 
 
-    def actualizar(self):
+    def actualizar_competicion(self):
+        """
+        Función que actualiza la competición seleccionada.
+        :return:
+        """
 
-        hilo_actualizar = threading.Thread(target=self.actualizar_thread)
+
+        hilo_actualizar = Thread(target=self.actualizar_competicion_thread)
         hilo_actualizar.start()
         self.loading_screen()
         self.loading_window.update()
@@ -411,7 +486,11 @@ class App(customtkinter.CTk):
 
 
 
-    def actualizar_thread(self):
+    def actualizar_competicion_thread(self):
+        """
+        Función que se ejecuta en un hilo para actualizar la competición seleccionada.
+        :return:
+        """
         self.panel.actualizar_competicion(self.competicion_label.cget("text"))
         self.enlaces_label_ultima_actualizacion.configure(
             text=f"Última actualización:\n{self.panel.get_competicion(self.competicion_label.cget('text')).ultima_actualizacion}")
@@ -419,6 +498,10 @@ class App(customtkinter.CTk):
         self.loading_window.destroy()
 
     def ventana_actualizar_panel(self):
+        """
+        Función que muestra una ventana de confirmación para actualizar el panel.
+        :return:
+        """
         #Show pop up window for confirmation
         if self.panel is None:
             return
@@ -442,21 +525,37 @@ class App(customtkinter.CTk):
         btn_no.pack(padx=10, side="right")
 
     def actualizar_panel(self, confirmation_window):
+        """
+        Función que actualiza el panel.
+        :param confirmation_window:
+        :return:
+        """
         confirmation_window.destroy()
-        hilo_actualizar = threading.Thread(target=self.actualizar_panel_thread)
+        hilo_actualizar = Thread(target=self.actualizar_panel_thread)
         hilo_actualizar.start()
         self.loading_screen()
         self.loading_window.update()
 
     def actualizar_panel_thread(self):
+        """
+        Función que se ejecuta en un hilo para actualizar el panel.
+        :return:
+        """
         self.panel.actualizar_competiciones()
         self.loading_window.destroy()
-        self.actualizar_competicion_listview()
+        self.abrir_competicion(None)
 
     def loading_screen(self):
+        """
+        Función que muestra una ventana de carga con una barra de progreso indeterminada.
+        :return:
+        """
         # Create tokLevelWindow
         self.loading_window = customtkinter.CTkToplevel(self)
         self.loading_window.title("Cargando")
+        # icon
+        self.loading_window.iconbitmap(funciones_aux.resource_path(ICON_PATH))
+
 
         progressbar = customtkinter.CTkProgressBar(self.loading_window, orientation="horizontal")
         progressbar.configure(mode="indeterminate")
@@ -466,17 +565,11 @@ class App(customtkinter.CTk):
         texto.pack(padx=20, pady=20)
         self.loading_window.attributes("-topmost", True)
 
-    def elegir_competicion(self):
-        # Check if there is a competition selected
-        if self.competiciones_lista.curselection() == ():
-            return
-        # Get the competition selected
-        competicion = self.competiciones_lista.get(self.competiciones_lista.curselection())
-        # Update the competition label
-        self.abrir_competicion(competicion)
-        pass
-
     def borrar_panel(self):
+        """
+        Función que borra el panel.
+        :return:
+        """
         # Clear frame equipos_estadisticas_frame
         for widget in self.equipos_estadisticas_frame.winfo_children():
             widget.destroy()
@@ -491,230 +584,271 @@ class App(customtkinter.CTk):
         self.actualizar_competicion_listview()
         self.abrir_competicion(None)
     def abrir_competicion(self, nombre_competicion):
-        if len(self.panel.get_competiciones()) == 0:
-            self.btn_exportar_partidos.configure(state="disabled")
-            self.btn_exportar_competiciones.configure(state="disabled")
-        else:
-            self.btn_exportar_competiciones.configure(state="normal")
-            self.btn_exportar_partidos.configure(state="normal")
-        #check enlaces length
-        if nombre_competicion is not None:
-            if len(self.panel.get_competicion(nombre_competicion).enlaces) == 0:
-                self.btn_enlaces_actualizar.configure(state="disabled")
+        """
+        Función que abre una competición.
+        :param nombre_competicion: Nombre de la competición a abrir. Si es None, abrirá la competición Nula por defecto.
+        :return:
+        """
+
+        try:
+
+            if len(self.panel.get_competiciones()) == 0:
+                self.btn_exportar_partidos.configure(state="disabled")
+                self.btn_exportar_competiciones.configure(state="disabled")
             else:
-                self.btn_enlaces_actualizar.configure(state="normal")
-        else:
-            self.btn_enlaces_actualizar.configure(state="disabled")
+                self.btn_exportar_competiciones.configure(state="normal")
+                self.btn_exportar_partidos.configure(state="normal")
+            #check enlaces length
+            if nombre_competicion is not None:
+                if len(self.panel.get_competicion(nombre_competicion).enlaces) == 0:
+                    self.btn_enlaces_actualizar.configure(state="disabled")
+                else:
+                    self.btn_enlaces_actualizar.configure(state="normal")
+            else:
+                self.btn_enlaces_actualizar.configure(state="disabled")
 
-        # Clear frame
-        for widget in self.equipos_estadisticas_frame.winfo_children():
-            widget.destroy()
-        for widget in self.equipos_graficos_frame.winfo_children():
-            widget.destroy()
-        for widget in self.estadisticas_frame.winfo_children():
-            widget.destroy()
+            # Clear frame
+            for widget in self.equipos_estadisticas_frame.winfo_children():
+                widget.destroy()
+            for widget in self.equipos_graficos_frame.winfo_children():
+                widget.destroy()
+            for widget in self.estadisticas_frame.winfo_children():
+                widget.destroy()
 
-        # Change tabview to General
-        self.tabview_competicion.set("General")
-
-
-        if nombre_competicion is None:
-            self.tabview_competicion.configure(state="disabled")
-            self.competicion_label.configure(text="Competición #")
-            self.enlaces_lista.delete(0, "end")
-            self.btn_enlaces_actualizar.configure(state="disabled")
-            self.btn_enlaces_annadir.configure(state="disabled")
-            self.enlaces_label_ultima_actualizacion.configure(text=f"Última actualización:\n")
+            # Change tabview to General
             self.tabview_competicion.set("General")
-            self.general_tabview.set("Estadísticas")
-            self.general_tabview.configure(state="disabled")
-            # Put "" on combobox
+
+
+            if nombre_competicion is None:
+                self.tabview_competicion.configure(state="disabled")
+                self.competicion_label.configure(text="Competición #")
+                self.enlaces_lista.delete(0, "end")
+                self.btn_enlaces_actualizar.configure(state="disabled")
+                self.btn_enlaces_annadir.configure(state="disabled")
+                self.enlaces_label_ultima_actualizacion.configure(text=f"Última actualización:\n")
+                self.tabview_competicion.set("General")
+                self.general_tabview.set("Estadísticas")
+                self.general_tabview.configure(state="disabled")
+                # Put "" on combobox
+                self.partidos_buscador_combobox.set("")
+                self.equipos_buscador_combobox.set("")
+                self.equipos_partidos_combobox.set("")
+                return
+
+            if self.competicion_label.cget("text") == "Competición #":
+                self.tabview_competicion.configure(state="normal")
+                self.general_tabview.configure(state="normal")
+            self.competicion_label.configure(text=nombre_competicion)
+            self.enlaces_lista.delete(0, "end")
+
+
+            competicion = self.panel.get_competicion(nombre_competicion)
+            enlaces = self.panel.get_competicion(nombre_competicion).enlaces
+
+            for enlace in enlaces:
+                self.enlaces_lista.insert("end", enlace)
+
+
+            self.btn_enlaces_annadir.configure(state="normal")
+            self.enlaces_label_ultima_actualizacion.configure(text=f"Última actualización:\n{competicion.ultima_actualizacion}")
+
+
+            # Tab General
+
+            # Tab General - Clasificación
+            clasificacion_df = competicion.get_clasificacion()
+            self.clasificacion_treeview.delete(*self.clasificacion_treeview.get_children())
+            for index, row in clasificacion_df.iterrows():
+                self.clasificacion_treeview.insert(parent="", index="end", iid=index, text="", values=(
+                    index, row["nombre"], row["temporada"], row["gf"], row["gc"], row["victorias"], row["derrotas"],
+                    row["empates"]))
+
+            # Tab Equipos
+            # Cargar listado de equipos
+            listado_equipos = competicion.get_equipos()
+            nombres_equipos = []
+            for equipo in listado_equipos:
+                nombres_equipos.append(equipo.nombre)
+            self.equipos_buscador_combobox.configure(values=nombres_equipos)
+            self.equipos_buscador_combobox.set("")
+
+
+
+            # Tab General - Estadísticas
+            # Clear frame
+
+
+            estadisticas = self.panel.get_estadisticas_competicion(nombre_competicion)
+
+            etiqueta = customtkinter.CTkLabel(self.estadisticas_frame, text="Total de:",
+                                              font=customtkinter.CTkFont(size=20, weight="bold"))
+            etiqueta.pack(padx=10, pady=(20, 0))
+            # Crear TreeView 1: Equipos, Partidos
+            treeview = ttk.Treeview(self.estadisticas_frame, columns=('Equipos', 'Partidos'), show='headings',
+                                    height=1)
+            treeview.column('Equipos', anchor="center", width=50)
+            treeview.column('Partidos', anchor="center", width=50)
+            treeview.heading('Equipos', text='Equipos', anchor="center")
+            treeview.heading('Partidos', text='Partidos', anchor="center")
+
+            treeview.pack(fill="both", padx=10, pady=0)
+
+            etiqueta = customtkinter.CTkLabel(self.estadisticas_frame, text="Victorias de:",
+                                              font=customtkinter.CTkFont(size=20, weight="bold"))
+            etiqueta.pack(padx=10, pady=(20, 0))
+            treeview.insert(parent="", index="end", iid=0, text="", values=(estadisticas["numero_equipos"], estadisticas["numero_partidos"]))
+
+            # Crear TreeView 2: Victorias Locales, Victorias Visitantes, Empates
+            treeview = ttk.Treeview(self.estadisticas_frame,
+                                    columns=('Victorias Locales', 'Victorias Visitantes', 'Empates'), show='headings',
+                                    height=1)
+            treeview.column('Victorias Locales', anchor="center", width=50)
+            treeview.column('Victorias Visitantes', anchor="center", width=50)
+            treeview.column('Empates', anchor="center", width=50)
+            treeview.heading('Victorias Locales', text='Locales', anchor="center")
+            treeview.heading('Victorias Visitantes', text='Visitantes', anchor="center")
+            treeview.heading('Empates', text='Empates', anchor="center")
+            treeview.pack(fill="both", padx=10, pady=0)
+
+            etiqueta = customtkinter.CTkLabel(self.estadisticas_frame, text="Media de Goles: ",
+                                              font=customtkinter.CTkFont(size=20, weight="bold"))
+            etiqueta.pack(padx=10, pady=(20, 0))
+            treeview.insert(parent="", index="end", iid=0, text="", values=(estadisticas["victorias_locales"], estadisticas["victorias_visitantes"], estadisticas["empates"]))
+
+            # Crear TreeView 3: Goles por partido, Goles Ganadores, Goles perdedores
+            treeview = ttk.Treeview(self.estadisticas_frame,
+                                    columns=('Goles por partido', 'Goles Ganadores', 'Goles perdedores'),
+                                    show='headings',
+                                    height=1)
+            treeview.column('Goles por partido', anchor="center", width=50)
+            treeview.column('Goles Ganadores', anchor="center", width=50)
+            treeview.column('Goles perdedores', anchor="center", width=50)
+
+            treeview.heading('Goles por partido', text='Por partido', anchor="center")
+            treeview.heading('Goles Ganadores', text='Ganadores', anchor="center")
+            treeview.heading('Goles perdedores', text='Perdedores', anchor="center")
+            treeview.pack(fill="both", padx=10, pady=0)
+            treeview.insert(parent="", index="end", iid=0, text="", values=(str(estadisticas["media_goles_por_partido"]) + " ± " + str(estadisticas["std_goles_por_partido"]), str(estadisticas["media_goles_ganadores"]) + " ± " + str(estadisticas["std_goles_ganadores"]), str(estadisticas["media_goles_perdedores"]) + " ± " + str(estadisticas["std_goles_perdedores"])))
+
+
+            # Treeview de Coeficientes
+            coeficientes = competicion.get_coeficientes(clasificacion_df)
+            etiqueta = customtkinter.CTkLabel(self.estadisticas_frame, text="Coeficientes:",
+                                              font=customtkinter.CTkFont(size=20, weight="bold"))
+            etiqueta.pack(padx=10, pady=(20, 0))
+            treeview = ttk.Treeview(self.estadisticas_frame,
+                                    columns=('Coeficiente', 'Valor'), show='headings',
+                                    height=2)
+            treeview.column('Coeficiente', anchor="center", width=50)
+            treeview.column('Valor', anchor="center", width=50)
+            treeview.heading('Coeficiente', text='Coeficiente', anchor="center")
+            treeview.heading('Valor', text='Valor', anchor="center")
+            treeview.pack(fill="both", padx=10, pady=0)
+
+            treeview.insert(parent="", index="end", iid=0, text="", values=("Pearson GF-Puntos", round(coeficientes["GF_Pearson"], 2)))
+            treeview.insert(parent="", index="end", iid=1, text="", values=("Pearson GC-Puntos", round(coeficientes["GC_Pearson"], 2)))
+            # treeview.insert(parent="", index="end", iid=2, text="", values=("Spearman GF", round(coeficientes["GF_Spearman"], 2)))
+            # treeview.insert(parent="", index="end", iid=3, text="", values=("Spearman GC", round(coeficientes["GC_Spearman"], 2)))
+
+            self.update() # Forzamos a que se actualice el frame
+
+            # Clear frame
+            for widget in self.graficos_frame.winfo_children():
+                widget.destroy()
+
+
+            # Tab General - Gráficos
+            # Gráficos
+            estadisticas = self.panel.get_estadisticas_competicion(nombre_competicion)
+            gf = estadisticas["goles_ganadores"]
+            gc = estadisticas["goles_perdedores"]
+            goles = [gf, gc]
+            labels = ["Goles ganadores", "Goles perdedores"]
+            fig_violinplot, ax = self.crear_violinplot(datos=goles, labels=labels, titulo="Violinplot de goles de " + nombre_competicion, ylabel="Goles", xlabel="Tipo de gol", dark=True)
+
+            plt.tight_layout()
+
+            fig_histograma, ax = self.crear_histograma(datos=estadisticas["goles_por_partido"], titulo="Histograma de goles por partido de " + nombre_competicion, ylabel="Frecuencia", xlabel="Goles", dark=True)
+
+
+            histograma_competicion = FigureCanvasTkAgg(fig_histograma, master=self.graficos_frame)
+            histograma_competicion.draw()
+            histograma_competicion.get_tk_widget().pack(expand=True, fill="both", padx=10, pady=10)
+
+            # Add figure to
+            violinplot_competicion = FigureCanvasTkAgg(fig_violinplot, master=self.graficos_frame)
+            violinplot_competicion.draw()
+            violinplot_competicion.get_tk_widget().pack(expand=True, fill="both", padx=10, pady=10)
+
+
+            # Creamos puestos
+            index = []
+            for i in range(1, len(clasificacion_df.index) + 1):
+                index.append(i)
+
+            try:
+
+                # Puesto y GF
+                gf_por_partido = []
+                for i in range(0, len(clasificacion_df.index)):
+                    gf_por_partido.append(clasificacion_df.iloc[i]["gf"] / (clasificacion_df.iloc[i]["victorias"] + clasificacion_df.iloc[i]["derrotas"] + clasificacion_df.iloc[i]["empates"]))
+
+                datos = [index, gf_por_partido]
+                fig_puesto_gf, ax = self.crear_scatterplot(datos=datos, titulo="Puesto y goles a favor de " + nombre_competicion, ylabel="Goles a favor", xlabel="Puesto", dark=True, linea_vertical=False)
+                scatterplot_competicion = FigureCanvasTkAgg(fig_puesto_gf, master=self.graficos_frame)
+                scatterplot_competicion.draw()
+                scatterplot_competicion.get_tk_widget().pack(expand=True, fill="both", padx=10, pady=10)
+
+                # Puesto y GC
+                gc_por_partido = []
+                for i in range(0, len(clasificacion_df.index)):
+                    gc_por_partido.append(clasificacion_df.iloc[i]["gc"] / (clasificacion_df.iloc[i]["victorias"] + clasificacion_df.iloc[i]["derrotas"] + clasificacion_df.iloc[i]["empates"]))
+                datos = [index, gc_por_partido]
+                fig_puesto_gc, ax = self.crear_scatterplot(datos=datos, titulo="Puesto y goles en contra de " + nombre_competicion, ylabel="Goles en contra", xlabel="Puesto", dark=True, linea_vertical=False)
+                scatterplot_competicion = FigureCanvasTkAgg(fig_puesto_gc, master=self.graficos_frame)
+                scatterplot_competicion.draw()
+                scatterplot_competicion.get_tk_widget().pack(expand=True, fill="both", padx=10, pady=10)
+            except:
+                pass
+
+            # Tab Partidos
+
+            #
             self.partidos_buscador_combobox.set("")
+            partidos_df = competicion.partidos_to_df()
+            partidos_df["dif"] = abs(partidos_df["gl"] - partidos_df["gv"])
+            partidos_df = partidos_df.sort_values(by=["dif"], ascending=False)
+
+
+
+            # Insert partidos
+            self.partidos_treeview.delete(*self.partidos_treeview.get_children())
+            for index, row in partidos_df.iterrows():
+                self.partidos_treeview.insert(parent="", index="end", iid=index, text="", values=(
+                    row["local"], row["gl"], row["gv"], row["visitante"]))
+
+            # Tab Equipos
             self.equipos_buscador_combobox.set("")
             self.equipos_partidos_combobox.set("")
-            return
-
-        if self.competicion_label.cget("text") == "Competición #":
-            self.tabview_competicion.configure(state="normal")
-            self.general_tabview.configure(state="normal")
-        self.competicion_label.configure(text=nombre_competicion)
-        self.enlaces_lista.delete(0, "end")
-
-        enlaces = self.panel.get_competicion(nombre_competicion).enlaces
-
-        for enlace in enlaces:
-            self.enlaces_lista.insert("end", enlace)
+            self.equipos_partidos_treeview.delete(*self.equipos_partidos_treeview.get_children())
 
 
-        self.btn_enlaces_annadir.configure(state="normal")
-        self.enlaces_label_ultima_actualizacion.configure(text=f"Última actualización:\n{self.panel.get_competicion(nombre_competicion).ultima_actualizacion}")
+        except Exception as e:
 
+            self.show_message("Error al abrir la competición.\n" + str(e))
+            print(e)
 
-        # Tab General
-
-        # Tab General - Clasificación
-        clasificacion_df = self.panel.get_competicion(nombre_competicion).get_clasificacion()
-        self.clasificacion_treeview.delete(*self.clasificacion_treeview.get_children())
-        for index, row in clasificacion_df.iterrows():
-            self.clasificacion_treeview.insert(parent="", index="end", iid=index, text="", values=(
-                index, row["nombre"], row["temporada"], row["gf"], row["gc"], row["victorias"], row["derrotas"],
-                row["empates"]))
-
-        # Tab Equipos
-        # Cargar listado de equipos
-        listado_equipos = self.panel.get_competicion(nombre_competicion).get_equipos()
-        nombres_equipos = []
-        for equipo in listado_equipos:
-            nombres_equipos.append(equipo.nombre)
-        self.equipos_buscador_combobox.configure(values=nombres_equipos)
-        self.equipos_buscador_combobox.set("")
-
-
-
-        # Tab General - Estadísticas
-        # Clear frame
-
-
-        estadisticas = self.panel.get_estadisticas_competicion(nombre_competicion)
-
-        etiqueta = customtkinter.CTkLabel(self.estadisticas_frame, text="Total de:",
-                                          font=customtkinter.CTkFont(size=20, weight="bold"))
-        etiqueta.pack(padx=10, pady=(20, 0))
-        # Crear TreeView 1: Equipos, Partidos
-        treeview = ttk.Treeview(self.estadisticas_frame, columns=('Equipos', 'Partidos'), show='headings',
-                                height=1)
-        treeview.column('Equipos', anchor="center", width=50)
-        treeview.column('Partidos', anchor="center", width=50)
-        treeview.heading('Equipos', text='Equipos', anchor="center")
-        treeview.heading('Partidos', text='Partidos', anchor="center")
-
-        treeview.pack(fill="both", padx=10, pady=0)
-
-        etiqueta = customtkinter.CTkLabel(self.estadisticas_frame, text="Victorias de:",
-                                          font=customtkinter.CTkFont(size=20, weight="bold"))
-        etiqueta.pack(padx=10, pady=(20, 0))
-        treeview.insert(parent="", index="end", iid=0, text="", values=(estadisticas["numero_equipos"], estadisticas["numero_partidos"]))
-
-        # Crear TreeView 2: Victorias Locales, Victorias Visitantes, Empates
-        treeview = ttk.Treeview(self.estadisticas_frame,
-                                columns=('Victorias Locales', 'Victorias Visitantes', 'Empates'), show='headings',
-                                height=1)
-        treeview.column('Victorias Locales', anchor="center", width=50)
-        treeview.column('Victorias Visitantes', anchor="center", width=50)
-        treeview.column('Empates', anchor="center", width=50)
-        treeview.heading('Victorias Locales', text='Locales', anchor="center")
-        treeview.heading('Victorias Visitantes', text='Visitantes', anchor="center")
-        treeview.heading('Empates', text='Empates', anchor="center")
-        treeview.pack(fill="both", padx=10, pady=0)
-
-        etiqueta = customtkinter.CTkLabel(self.estadisticas_frame, text="Media de Goles: ",
-                                          font=customtkinter.CTkFont(size=20, weight="bold"))
-        etiqueta.pack(padx=10, pady=(20, 0))
-        treeview.insert(parent="", index="end", iid=0, text="", values=(estadisticas["victorias_locales"], estadisticas["victorias_visitantes"], estadisticas["empates"]))
-
-        # Crear TreeView 3: Goles por partido, Goles Ganadores, Goles perdedores
-        treeview = ttk.Treeview(self.estadisticas_frame,
-                                columns=('Goles por partido', 'Goles Ganadores', 'Goles perdedores'),
-                                show='headings',
-                                height=1)
-        treeview.column('Goles por partido', anchor="center", width=50)
-        treeview.column('Goles Ganadores', anchor="center", width=50)
-        treeview.column('Goles perdedores', anchor="center", width=50)
-
-        treeview.heading('Goles por partido', text='Por partido', anchor="center")
-        treeview.heading('Goles Ganadores', text='Ganadores', anchor="center")
-        treeview.heading('Goles perdedores', text='Perdedores', anchor="center")
-        treeview.pack(fill="both", padx=10, pady=0)
-        treeview.insert(parent="", index="end", iid=0, text="", values=(str(estadisticas["media_goles_por_partido"]) + " ± " + str(estadisticas["std_goles_por_partido"]), str(estadisticas["media_goles_ganadores"]) + " ± " + str(estadisticas["std_goles_ganadores"]), str(estadisticas["media_goles_perdedores"]) + " ± " + str(estadisticas["std_goles_perdedores"])))
-
-        # Clear frame
-        for widget in self.graficos_frame.winfo_children():
-            widget.destroy()
-
-        # Tab General - Gráficos
-        # Gráficos
-        estadisticas = self.panel.get_estadisticas_competicion(nombre_competicion)
-        gf = estadisticas["goles_ganadores"]
-        gc = estadisticas["goles_perdedores"]
-        goles = [gf, gc]
-        labels = ["Goles ganadores", "Goles perdedores"]
-        fig_violinplot, ax = self.crear_violinplot(datos=goles, labels=labels, titulo="Violinplot de goles de " + nombre_competicion, ylabel="Goles", xlabel="Tipo de gol", dark=True)
-
-        plt.tight_layout()
-
-        fig_histograma, ax = self.crear_histograma(datos=estadisticas["goles_por_partido"], titulo="Histograma de goles por partido de " + nombre_competicion, ylabel="Frecuencia", xlabel="Goles", dark=True)
-
-
-        histograma_competicion = FigureCanvasTkAgg(fig_histograma, master=self.graficos_frame)
-        histograma_competicion.draw()
-        histograma_competicion.get_tk_widget().pack(expand=True, fill="both", padx=10, pady=10)
-
-        # Add figure to
-        violinplot_competicion = FigureCanvasTkAgg(fig_violinplot, master=self.graficos_frame)
-        violinplot_competicion.draw()
-        violinplot_competicion.get_tk_widget().pack(expand=True, fill="both", padx=10, pady=10)
-
-
-        # Creamos puestos
-        index = []
-        for i in range(1, len(clasificacion_df.index) + 1):
-            index.append(i)
-
-        # Puesto y GF
-        gf_por_partido = []
-        for i in range(0, len(clasificacion_df.index)):
-            gf_por_partido.append(clasificacion_df.iloc[i]["gf"] / (clasificacion_df.iloc[i]["victorias"] + clasificacion_df.iloc[i]["derrotas"] + clasificacion_df.iloc[i]["empates"]))
-
-        datos = [index, gf_por_partido]
-        fig_puesto_gf, ax = self.crear_scatterplot(datos=datos, titulo="Puesto y goles a favor de " + nombre_competicion, ylabel="Goles a favor", xlabel="Puesto", dark=True, linea_vertical=False)
-        scatterplot_competicion = FigureCanvasTkAgg(fig_puesto_gf, master=self.graficos_frame)
-        scatterplot_competicion.draw()
-        scatterplot_competicion.get_tk_widget().pack(expand=True, fill="both", padx=10, pady=10)
-
-        # Puesto y GC
-        gc_por_partido = []
-        for i in range(0, len(clasificacion_df.index)):
-            gc_por_partido.append(clasificacion_df.iloc[i]["gc"] / (clasificacion_df.iloc[i]["victorias"] + clasificacion_df.iloc[i]["derrotas"] + clasificacion_df.iloc[i]["empates"]))
-        datos = [index, gc_por_partido]
-        fig_puesto_gc, ax = self.crear_scatterplot(datos=datos, titulo="Puesto y goles en contra de " + nombre_competicion, ylabel="Goles en contra", xlabel="Puesto", dark=True, linea_vertical=False)
-        scatterplot_competicion = FigureCanvasTkAgg(fig_puesto_gc, master=self.graficos_frame)
-        scatterplot_competicion.draw()
-        scatterplot_competicion.get_tk_widget().pack(expand=True, fill="both", padx=10, pady=10)
-
-        # Tab Partidos
-
-        #
-        self.partidos_buscador_combobox.set("")
-        partidos_df = self.panel.get_competicion(nombre_competicion).partidos_to_df()
-        partidos_df["dif"] = abs(partidos_df["gl"] - partidos_df["gv"])
-        partidos_df = partidos_df.sort_values(by=["dif"], ascending=False)
-
-
-
-        # Insert partidos
-        self.partidos_treeview.delete(*self.partidos_treeview.get_children())
-        for index, row in partidos_df.iterrows():
-            self.partidos_treeview.insert(parent="", index="end", iid=index, text="", values=(
-                row["local"], row["gl"], row["gv"], row["visitante"]))
-
-        # Tab Equipos
-        self.equipos_buscador_combobox.set("")
-        self.equipos_partidos_combobox.set("")
-        self.equipos_partidos_treeview.delete(*self.equipos_partidos_treeview.get_children())
-
-
-
-
-
-
-
-
-        pass
     def annadir_competicion(self):
+        """
+        Función que muestra una ventana para añadir una competición.
+        :return:
+        """
         # Create tokLevelWindow
         self.annadir_competicion_window = customtkinter.CTkToplevel(self)
         self.annadir_competicion_window.title("Añadir Competición")
         self.annadir_competicion_window.geometry(f"{300}x{150}")
+        #icon
+        self.annadir_competicion_window.iconbitmap(funciones_aux.resource_path(ICON_PATH))
         self.annadir_competicion_window.attributes("-topmost", True)
         self.annadir_competicion_window.resizable(False, False)
         # Create frame
@@ -731,18 +865,35 @@ class App(customtkinter.CTk):
         annadir_competicion_button = customtkinter.CTkButton(annadir_competicion_frame, text="Añadir", command=self.annadir_competicion_event)
         annadir_competicion_button.pack(padx=20, pady=10)
 
+        # bind enter key
+        self.annadir_competicion_window.bind("<Return>", lambda event: self.annadir_competicion_event())
+
     def get_competicion(self, nombre):
+        """
+        Función que devuelve una competición. Llama a la función get_competicion de la clase Panel.
+        :param nombre: Nombre de la competición a devolver.
+        :return:
+        """
         return self.panel.get_competicion(nombre)
     def annadir_competicion_event(self):
-        self.panel.add_competicion(gestor.Competicion(nombre=self.annadir_competicion_entry.get(), actualizar_al_iniciar=False, nombre_bd=self.panel.archivo_bd))
-        self.actualizar_competicion_listview()
-        self.abrir_competicion(self.annadir_competicion_entry.get())
+        """
+        Función que se ejecuta cuando se pulsa el botón de añadir competición.
+        :return:
+        """
+        entrada = self.annadir_competicion_entry.get()
         self.annadir_competicion_window.destroy()
+        self.panel.add_competicion(gestor.Competicion(nombre=entrada, actualizar_al_iniciar=False, nombre_bd=PANEL_PATH))
+        self.actualizar_competicion_listview()
+        self.abrir_competicion(entrada)
         self.competiciones_lista.select(-1)
 
         pass
 
     def borrar_competicion(self):
+        """
+        Función que elimina la competición seleccionada.
+        :return:
+        """
         self.panel.eliminar_competicion(self.competicion_label.cget("text"))
         self.actualizar_competicion_listview()
         self.abrir_competicion(None)
@@ -750,48 +901,64 @@ class App(customtkinter.CTk):
 
 
     def actualizar_competicion_listview(self):
+        """
+        Función que actualiza la lista de competiciones.
+        :return:
+        """
         self.competiciones_lista.delete(0, "end")
         competiciones = self.panel.get_competiciones()
         for competicion in competiciones:
             self.competiciones_lista.insert("end", competicion.nombre)
         pass
 
-    def cargar_competicion(self):
-        pass
-
-    def cargar_panel(self, competiciones):
-        self.panel = gestor.panel_from_json(competiciones)
-
-        pass
 
     def abrir_panel(self):
+        """
+        Función que abre un panel. Genera una ventana para seleccionar el panel a abrir.
+        :return:
+        """
         origen = filedialog.askopenfilename(initialdir=".", title="Abrir Panel",
                                                 filetypes=(("DataBase", "*.db"), ("Todos los archivos", "*.*")))
         if origen == "" or origen is None:
              return
         try:
-            shutil.copyfile(origen, PANEL_PATH)
+            path = funciones_aux.resource_path(PANEL_PATH)
+            copyfile(origen, path)
         except:
             print("Error al abrir el panel")
 
         self.cargar_estado()
-        # self.actualizar_competicion_listview()
         self.abrir_competicion(None)
 
+
     def annadir_al_panel(self):
+        """
+        Función que añade una competición al panel. #TODO
+        :return:
+        """
         self.show_message("Función no implementada")
 
     def guardar_panel(self):
+        """
+        Función que guarda el panel. Genera una ventana para seleccionar el destino del panel.
+        :return:
+        """
         destino = filedialog.asksaveasfilename(initialdir=".", title="Guardar Panel",
                                                 filetypes=(("DataBase", "*.db"), ("Todos los archivos", "*.*")), defaultextension=".db")
         if destino == "" or destino is None:
              return
         try:
-            shutil.copyfile(PANEL_PATH, destino)
+            path = funciones_aux.resource_path(PANEL_PATH)
+            copyfile(path, destino)
         except:
             print("Error al guardar el panel")
 
     def show_message(self, message):
+        """
+        Función que muestra una ventana con un mensaje.
+        :param message:
+        :return:
+        """
         self.message_window = customtkinter.CTkToplevel(self)
         self.message_window.title("Mensaje")
         self.message_window.geometry(f"{300}x{150}")
@@ -806,13 +973,19 @@ class App(customtkinter.CTk):
         message_label.pack(padx=20, pady=10)
         # Create button
         message_button = customtkinter.CTkButton(message_frame, text="Aceptar", command=self.message_window.destroy)
-        message_button.pack(padx=20, pady=10)
+        message_button.pack(padx=20, pady=(10,0))
 
 
     def seleccionar_equipos(self, nombre_equipo):
+        """
+        Función que selecciona un equipo en el panel.
+        :param nombre_equipo: Nombre del equipo a seleccionar.
+        :return:
+        """
         competicion = self.get_competicion(self.competicion_label.cget("text"))
         equipo = competicion.get_equipo(nombre_equipo)
-        estadisticas = competicion.get_estadisticas_equipo(equipo)
+        df_clasificacion = competicion.get_clasificacion()
+        estadisticas = competicion.get_estadisticas_equipo(equipo, df_clasificacion)
 
 
         # Clear frame
@@ -985,6 +1158,17 @@ class App(customtkinter.CTk):
 
 
     def crear_violinplot(self, ax = None, datos = None, labels = None, titulo = None, ylabel = None, xlabel = None, dark = True):
+        """
+        Función que crea un violinplot.
+        :param ax:
+        :param datos:
+        :param labels:
+        :param titulo:
+        :param ylabel:
+        :param xlabel:
+        :param dark: True si el fondo es oscuro, False si es claro.
+        :return: fig, ax
+        """
         try:
             if len(datos) != len(labels):
                 raise Exception("El número de datos y etiquetas no coincide")
@@ -1027,7 +1211,7 @@ class App(customtkinter.CTk):
         ax.tick_params(axis='x', colors=color_texto, labelsize=14)
         ax.tick_params(axis='y', colors=color_texto, labelsize=14)
         ax.set_facecolor(color_fondo)
-        ax.set_xticks(np.arange(1, len(labels) + 1), labels=labels, color=color_texto, fontdict={"fontsize": 16})
+        ax.set_xticks(arange(1, len(labels) + 1), labels=labels, color=color_texto, fontdict={"fontsize": 16})
         ax.set_title(titulo, color=color_texto, fontdict={"fontsize": 20})
         ax.set_ylabel(ylabel, color=color_texto, fontdict={"fontsize": 16})
         ax.set_xlabel(xlabel, color=color_texto, fontdict={"fontsize": 16})
@@ -1036,6 +1220,17 @@ class App(customtkinter.CTk):
         return fig, ax
 
     def crear_scatterplot(self, ax = None, datos = None, titulo = None, ylabel = None, xlabel = None, dark = True, linea_vertical = True):
+        """
+        Función que crea un scatterplot.
+        :param ax:
+        :param datos:
+        :param titulo:
+        :param ylabel:
+        :param xlabel:
+        :param dark: True si el fondo es oscuro, False si es claro.
+        :param linea_vertical: True si se quiere dibujar una línea vertical en x = 0, False si no.
+        :return: fig, ax
+        """
         color_fondo = "#2a2d2e" if dark else "white"
         color_texto = "white" if dark else "black"
         color_puntos = "white" if dark else "black"
@@ -1044,11 +1239,11 @@ class App(customtkinter.CTk):
         else:
             fig = None
 
-        coefficients = np.polyfit(datos[0], datos[1], 1)
-        polynomial = np.poly1d(coefficients)
-        tendencia_x = np.linspace(min(datos[0]), max(datos[0]), 100)
+        coefficients = polyfit(datos[0], datos[1], 1)
+        polynomial = poly1d(coefficients)
+        tendencia_x = linspace(min(datos[0]), max(datos[0]), 100)
         tendencia_y = polynomial(tendencia_x)
-        # print(polynomial)
+
 
         ax.plot(tendencia_x, tendencia_y, color='C0', label='Línea de tendencia', linewidth=1.5 )
         # Draw a vertical line at x= 0
@@ -1076,6 +1271,16 @@ class App(customtkinter.CTk):
         return fig, ax
 
     def crear_histograma(self, ax = None, datos = None, titulo = None, ylabel = None, xlabel = None, dark = True):
+        """
+        Función que crea un histograma.
+        :param ax:
+        :param datos:
+        :param titulo:
+        :param ylabel:
+        :param xlabel:
+        :param dark: True si el fondo es oscuro, False si es claro.
+        :return: fig, ax
+        """
         try:
             if len(datos) == 0:
                 raise Exception("Los datos no pueden estar vacíos")
@@ -1090,7 +1295,7 @@ class App(customtkinter.CTk):
         else:
             fig = None
 
-        bins = np.arange(min(datos), max(datos) + 1.5) - 0.5
+        bins = arange(min(datos), max(datos) + 1.5) - 0.5
         ax.hist(datos, bins = bins,color="C0", edgecolor="white")
         ax.spines["bottom"].set_color(color_texto)
         ax.spines["left"].set_color(color_texto)
@@ -1118,6 +1323,10 @@ class App(customtkinter.CTk):
 
 
     def annadir_enlace(self):
+        """
+        Función que muestra una ventana para añadir un enlace.
+        :return:
+        """
         # Create tokLevelWindow
         self.annadir_enlace_window = customtkinter.CTkToplevel(self)
         self.annadir_enlace_window.title("Añadir Enlace")
@@ -1138,7 +1347,14 @@ class App(customtkinter.CTk):
         annadir_enlace_button = customtkinter.CTkButton(annadir_enlace_frame, text="Añadir", command=self.annadir_enlace_event)
         annadir_enlace_button.pack(padx=20, pady=10)
 
+        # bind enter key
+        self.annadir_enlace_window.bind("<Return>", lambda event: self.annadir_enlace_event())
+
     def annadir_enlace_event(self):
+        """
+        Función que se ejecuta cuando se pulsa el botón de añadir enlace. Añade el enlace a la competición seleccionada.
+        :return:
+        """
         enlace = self.annadir_enlace_entry.get()
 
         self.panel.annadir_enlace_a_competicion(self.competicion_label.cget("text"), enlace)
@@ -1148,6 +1364,10 @@ class App(customtkinter.CTk):
         self.abrir_competicion(self.competicion_label.cget("text"))
 
     def borrar_enlace(self):
+        """
+        Función que elimina el enlace seleccionado.
+        :return:
+        """
         if self.modificar_enlace_window is not None:
             self.modificar_enlace_window.destroy()
         enlace = self.enlaces_lista.get(self.enlaces_lista.curselection())
@@ -1156,6 +1376,10 @@ class App(customtkinter.CTk):
         self.abrir_competicion(self.competicion_label.cget("text"))
 
     def modificar_enlace(self):
+        """
+        Función que muestra una ventana para modificar el enlace seleccionado.
+        :return:
+        """
         #Open new window with entry
         self.modificar_enlace_window = customtkinter.CTkToplevel(self)
         self.modificar_enlace_window.title("Modificar Enlace")
@@ -1192,6 +1416,10 @@ class App(customtkinter.CTk):
             self.modificar_enlace_window.destroy()
 
     def modificar_enlace_event(self):
+        """
+        Función que se ejecuta cuando se pulsa el botón de modificar enlace. Modifica el enlace seleccionado.
+        :return:
+        """
         enlace = self.modificar_enlace_entry.get()
         enlace_viejo = self.enlaces_lista.get(self.enlaces_lista.curselection())
         self.panel.modificar_enlace_a_competicion(self.competicion_label.cget("text"), enlace_viejo, enlace)
@@ -1200,6 +1428,11 @@ class App(customtkinter.CTk):
         self.modificar_enlace_window.destroy()
 
     def modificar_nombre_competicion(self, event):
+        """
+        Función que muestra una ventana para modificar el nombre de la competición seleccionada.
+        :param event:
+        :return:
+        """
 
         if self.competicion_label.cget("text") == "Competición #":
             return
@@ -1228,6 +1461,10 @@ class App(customtkinter.CTk):
         self.modificar_nombre_competicion_entry.insert("end", self.competicion_label.cget("text"))
 
     def modificar_nombre_competicion_event(self):
+        """
+        Función que se ejecuta cuando se pulsa el botón de modificar nombre de la competición. Modifica el nombre de la competición seleccionada.
+        :return:
+        """
         nombre = self.modificar_nombre_competicion_entry.get()
         self.panel.modificar_nombre_competicion(self.competicion_label.cget("text"), nombre)
         self.modificar_nombre_competicion_window.destroy()
@@ -1235,6 +1472,11 @@ class App(customtkinter.CTk):
         self.abrir_competicion(nombre)
 
     def ordenar_partidos(self, event):
+        """
+        Función que ordena los partidos de la competición seleccionada según el criterio seleccionado.
+        :param event:
+        :return:
+        """
 
         if self.competicion_label.cget("text") == "Competición #":
             return
@@ -1274,6 +1516,11 @@ class App(customtkinter.CTk):
 
 
     def ordenar_partidos_equipo(self, event):
+        """
+        Función que ordena los partidos del equipo seleccionado según el criterio seleccionado.
+        :param event:
+        :return:
+        """
 
         if self.competicion_label.cget("text") == "Competición #":
             return
@@ -1316,11 +1563,20 @@ class App(customtkinter.CTk):
 
 
     def cargar_estado(self):
-        self.panel = gestor.panel_from_db(PANEL_PATH)
+        """
+        Función que carga el estado de la aplicación. Usa PANEL_PATH como ruta para cargar el panel.
+        :return:
+        """
+        path = funciones_aux.resource_path(PANEL_PATH)
+        self.panel = gestor.panel_from_db(ruta_abs= path, ruta_rel= PANEL_PATH)
         self.abrir_competicion(None)
         self.actualizar_competicion_listview()
 
     def exportar_partidos(self):
+        """
+        Función que exporta los partidos de la competición seleccionada. Abre un filedialog para seleccionar la ruta y el formato.
+        :return:
+        """
         partidos = self.panel.partidos_to_df()
 
 
@@ -1341,6 +1597,10 @@ class App(customtkinter.CTk):
 
 
     def exportar_competiciones(self):
+        """
+        Función que exporta las competiciones. Abre un filedialog para seleccionar la ruta y el formato.
+        :return:
+        """
         competiciones = self.panel.competiciones_to_df()
         filepath = filedialog.asksaveasfilename(initialdir=".", title="Guardar Competiciones",
                                                 filetypes=(("Excel", "*.xlsx"), ("CSV", "*.csv"), ("JSON", "*.json"), ("Todos los archivos", "*.*")), defaultextension=".xlsx")
@@ -1359,4 +1619,5 @@ class App(customtkinter.CTk):
 
 if __name__ == "__main__":
     app = App()
+    app.protocol("WM_DELETE_WINDOW", lambda : app.cerrar_app())
     app.mainloop()

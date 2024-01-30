@@ -1,4 +1,7 @@
+import os
 import re
+import sys
+
 
 def acortar_campo(campo):
     """
@@ -75,5 +78,21 @@ def get_federacion_by_index(index):
             return "Fed. Vasca"
         case _:
             return index
+
+def resource_path( relative_path):
+        """Get absolute path to resource, works for dev and for PyInstaller """
+
+        try:
+            # PyInstaller creates a temp folder and stores path in _MEIPASS
+            base_path = sys._MEIPASS
+
+        except Exception:
+            base_path = os.path.abspath(".")
+
+        ret = os.path.join(base_path, relative_path)
+        # print(ret)
+        return ret
+
+
 
 
